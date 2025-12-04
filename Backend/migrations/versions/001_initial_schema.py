@@ -95,4 +95,3 @@ def downgrade() -> None:
     op.execute("DROP TABLE IF EXISTS users")
     op.execute("DROP SCHEMA IF EXISTS sr")
     op.execute("DROP SCHEMA IF EXISTS app")
-

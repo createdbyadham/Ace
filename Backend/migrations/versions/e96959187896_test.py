@@ -19,7 +19,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    pass
+    op.execute("ALTER TABLE sr.states SET SCHEMA public")
+    op.execute("ALTER TABLE sr.reviews SET SCHEMA public")
 
 
 def downgrade() -> None:
