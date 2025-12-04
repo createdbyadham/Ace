@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+asyncpg
+pydantic
+pytest
+pytest-asyncio
+httpx
+python-dotenv
+psycopg2
