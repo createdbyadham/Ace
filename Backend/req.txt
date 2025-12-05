@@ -2,6 +2,7 @@ fastapi
 uvicorn
 asyncpg
 pydantic
+email-validator
 pytest
 pytest-asyncio
 httpx

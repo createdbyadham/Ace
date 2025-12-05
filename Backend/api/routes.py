@@ -6,6 +6,7 @@ from uuid import UUID
 import asyncpg
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
+from api.auth import CurrentUser, get_current_user
 from db.pool import get_pool
 from domain.cards.models import CardCreate, CardOut
 from domain.cards.service import CardService
@@ -13,7 +14,7 @@ from domain.decks.models import DeckCreate, DeckOut
 from domain.decks.service import DeckService
 from domain.sr.models import DueCardOut, ReviewIn, ReviewOut
 from domain.sr.service import ReviewService
-from domain.users.models import ProfileCreate, ProfileOut
+from domain.users.models import ProfileCreate, ProfileCreateInternal, ProfileOut
 from domain.users.service import ProfileService
 
 router = APIRouter()
@@ -39,9 +40,25 @@ def get_card_service(pool: asyncpg.Pool = Depends(get_pool)) -> CardService:
 
 @router.post("/users", response_model=ProfileOut)
 async def upsert_profile(
-    payload: ProfileCreate, service: ProfileService = Depends(get_profile_service)
+    payload: ProfileCreate,
+    user: CurrentUser = Depends(get_current_user),
+    service: ProfileService = Depends(get_profile_service),
 ):
-    return await service.upsert_profile(payload)
+    """
+    Create or update the current user's profile.
+    
+    Requires: Authorization: Bearer <jwt>
+    Body: { "username": "...", "display_name": "...", "avatar_url": "..." }
+    
+    The user_id is taken from the JWT - users can only create their own profile.
+    """
+    internal = ProfileCreateInternal(
+        user_id=user.id,
+        username=payload.username,
+        display_name=payload.display_name,
+        avatar_url=payload.avatar_url,
+    )
+    return await service.upsert_profile(internal)
 
 
 @router.get("/users/{user_id}", response_model=ProfileOut)

@@ -15,6 +15,10 @@ class Settings:
     db_port: int = int(os.getenv("port", ""))
     db_name: str = os.getenv("dbname", "")
     
+    # Supabase REST API (for RLS testing via PostgREST)
+    supabase_url: str = os.getenv("SUPABASE_URL", "")  # e.g. https://xxxxx.supabase.co
+    supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY", "")  # anon key (NOT service role)
+    
     def __post_init__(self):
         if not all([self.db_user, self.db_password, self.db_host]):
             raise ValueError(

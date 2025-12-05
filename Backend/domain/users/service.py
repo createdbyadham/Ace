@@ -5,18 +5,18 @@ from uuid import UUID
 
 import asyncpg
 
-from domain.users.models import ProfileCreate, ProfileOut
+from domain.users.models import ProfileCreateInternal, ProfileOut
 
 
 class ProfileService:
     def __init__(self, pool: asyncpg.Pool):
         self._pool = pool
 
-    async def upsert_profile(self, payload: ProfileCreate) -> ProfileOut:
+    async def upsert_profile(self, payload: ProfileCreateInternal) -> ProfileOut:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                INSERT INTO app.profiles (user_id, username, display_name, avatar_url)
+                INSERT INTO public.users (user_id, username, display_name, avatar_url)
                 VALUES ($1, $2, $3, $4)
                 ON CONFLICT (user_id) DO UPDATE
                    SET username = EXCLUDED.username,
@@ -43,7 +43,7 @@ class ProfileService:
             row = await conn.fetchrow(
                 """
                 SELECT user_id, username, display_name, avatar_url, created_at
-                FROM app.profiles
+                FROM public.users
                 WHERE user_id = $1
                 """,
                 user_id,
