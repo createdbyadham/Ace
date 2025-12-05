@@ -15,7 +15,6 @@ class ReviewService:
         self._pool = pool
 
     async def fetch_due_cards(self, *, user_id: UUID, limit: int) -> List[DueCardOut]:
-        user_key = str(user_id)
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 """
@@ -25,14 +24,14 @@ class ReviewService:
                        s.interval_days,
                        c.deck_id,
                        c.content
-                FROM sr.states s
-                JOIN app.cards c ON c.card_id = s.card_id
+                FROM public.states s
+                JOIN public.cards c ON c.card_id = s.card_id
                 WHERE s.user_id = $1
                   AND s.next_review_at <= now()
                 ORDER BY s.next_review_at
                 LIMIT $2
                 """,
-                user_key,
+                user_id,
                 limit,
             )
 
@@ -49,30 +48,29 @@ class ReviewService:
         ]
 
     async def process_review(self, *, payload: ReviewIn, user_id: UUID) -> ReviewOut:
-        user_key = str(user_id)
         async with self._pool.acquire() as conn:
             async with conn.transaction():
-                state = await self._handle_idempotent_review(conn, payload, user_key)
+                state = await self._handle_idempotent_review(conn, payload, user_id)
                 if state is not None:
                     return state
 
-                await self._insert_review_log(conn, payload, user_key)
+                await self._insert_review_log(conn, payload, user_id)
 
                 state_row = await conn.fetchrow(
                     """
                     SELECT state_id, repetition, interval_days
-                    FROM sr.states
+                    FROM public.states
                     WHERE user_id = $1 AND card_id = $2
                     FOR UPDATE
                     """,
-                    user_key,
+                    user_id,
                     payload.card_id,
                 )
 
                 if state_row is None:
                     await conn.execute(
                         """
-                        INSERT INTO sr.states (
+                        INSERT INTO public.states (
                             user_id,
                             card_id,
                             repetition,
@@ -84,17 +82,17 @@ class ReviewService:
                         )
                         VALUES ($1, $2, 0, 0, now(), NULL, now(), now())
                         """,
-                        user_key,
+                        user_id,
                         payload.card_id,
                     )
                     state_row = await conn.fetchrow(
                         """
                         SELECT state_id, repetition, interval_days
-                        FROM sr.states
+                        FROM public.states
                         WHERE user_id = $1 AND card_id = $2
                         FOR UPDATE
                         """,
-                        user_key,
+                        user_id,
                         payload.card_id,
                     )
 
@@ -108,7 +106,7 @@ class ReviewService:
 
                 await conn.execute(
                     """
-                    INSERT INTO sr.states (
+                    INSERT INTO public.states (
                         state_id,
                         user_id,
                         card_id,
@@ -121,7 +119,7 @@ class ReviewService:
                     )
                     VALUES (
                         $1, $2, $3, $4, $5, $6, now(), now(),
-                        coalesce((SELECT created_at FROM sr.states WHERE user_id = $2 AND card_id = $3), now())
+                        coalesce((SELECT created_at FROM public.states WHERE user_id = $2 AND card_id = $3), now())
                     )
                     ON CONFLICT (user_id, card_id) DO UPDATE
                     SET repetition = EXCLUDED.repetition,
@@ -131,7 +129,7 @@ class ReviewService:
                         updated_at = EXCLUDED.updated_at
                     """,
                     state_row["state_id"],
-                    user_key,
+                    user_id,
                     payload.card_id,
                     new_repetition,
                     new_interval,
@@ -146,7 +144,7 @@ class ReviewService:
                 )
 
     async def _handle_idempotent_review(
-        self, conn: asyncpg.Connection, payload: ReviewIn, user_key: str
+        self, conn: asyncpg.Connection, payload: ReviewIn, user_id: UUID
     ) -> ReviewOut | None:
         if not payload.client_review_id:
             return None
@@ -154,11 +152,11 @@ class ReviewService:
         existing = await conn.fetchrow(
             """
             SELECT 1
-            FROM sr.reviews
+            FROM public.reviews
             WHERE metadata->>'client_review_id' = $1 AND user_id = $2
             """,
             payload.client_review_id,
-            user_key,
+            user_id,
         )
         if not existing:
             return None
@@ -166,10 +164,10 @@ class ReviewService:
         state = await conn.fetchrow(
             """
             SELECT repetition, interval_days, next_review_at
-            FROM sr.states
+            FROM public.states
             WHERE user_id = $1 AND card_id = $2
             """,
-            user_key,
+            user_id,
             payload.card_id,
         )
         if state is None:
@@ -183,7 +181,7 @@ class ReviewService:
         )
 
     async def _insert_review_log(
-        self, conn: asyncpg.Connection, payload: ReviewIn, user_key: str
+        self, conn: asyncpg.Connection, payload: ReviewIn, user_id: UUID
     ) -> None:
         metadata = {"source": "fastapi-service"}
         if payload.client_review_id:
@@ -191,10 +189,10 @@ class ReviewService:
 
         await conn.execute(
             """
-            INSERT INTO sr.reviews (user_id, card_id, response, elapsed_ms, created_at, metadata)
+            INSERT INTO public.reviews (user_id, card_id, response, elapsed_ms, created_at, metadata)
             VALUES ($1, $2, $3, $4, now(), $5::jsonb)
             """,
-            user_key,
+            user_id,
             payload.card_id,
             payload.response.lower(),
             payload.elapsed_ms,

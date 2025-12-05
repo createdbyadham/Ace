@@ -17,22 +17,22 @@ class CardService:
         async with self._pool.acquire() as conn:
             if payload.deck_id is not None:
                 deck_owner = await conn.fetchval(
-                    "SELECT owner_id FROM app.decks WHERE deck_id = $1",
+                    "SELECT owner_id FROM public.decks WHERE deck_id = $1",
                     payload.deck_id,
                 )
                 if deck_owner is None:
                     raise ValueError("Deck does not exist.")
-                if str(deck_owner) != str(owner_id):
+                if deck_owner != owner_id:
                     raise PermissionError("Deck does not belong to the current user.")
 
             row = await conn.fetchrow(
                 """
-                INSERT INTO app.cards (deck_id, owner_id, content)
+                INSERT INTO public.cards (deck_id, owner_id, content)
                 VALUES ($1, $2, $3::jsonb)
                 RETURNING card_id, deck_id, owner_id, content, created_at
                 """,
                 payload.deck_id,
-                str(owner_id),
+                owner_id,
                 content,
             )
 
@@ -47,27 +47,26 @@ class CardService:
     async def list_cards(
         self, *, owner_id: UUID, deck_id: Optional[UUID] = None
     ) -> List[CardOut]:
-        owner_key = str(owner_id)
         async with self._pool.acquire() as conn:
             if deck_id is None:
                 rows = await conn.fetch(
                     """
                     SELECT card_id, deck_id, owner_id, content, created_at
-                    FROM app.cards
+                    FROM public.cards
                     WHERE owner_id = $1
                     ORDER BY created_at DESC
                     """,
-                    owner_key,
+                    owner_id,
                 )
             else:
                 rows = await conn.fetch(
                     """
                     SELECT card_id, deck_id, owner_id, content, created_at
-                    FROM app.cards
+                    FROM public.cards
                     WHERE owner_id = $1 AND deck_id = $2
                     ORDER BY created_at DESC
                     """,
-                    owner_key,
+                    owner_id,
                     deck_id,
                 )
 
@@ -83,15 +82,14 @@ class CardService:
         ]
 
     async def get_card(self, *, owner_id: UUID, card_id: UUID) -> Optional[CardOut]:
-        owner_key = str(owner_id)
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 SELECT card_id, deck_id, owner_id, content, created_at
-                FROM app.cards
+                FROM public.cards
                 WHERE owner_id = $1 AND card_id = $2
                 """,
-                owner_key,
+                owner_id,
                 card_id,
             )
         if row is None:

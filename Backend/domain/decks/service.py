@@ -16,11 +16,11 @@ class DeckService:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                INSERT INTO app.decks (owner_id, title)
+                INSERT INTO public.decks (owner_id, title)
                 VALUES ($1, $2)
                 RETURNING deck_id, owner_id, title, created_at
                 """,
-                str(owner_id),
+                owner_id,
                 payload.title,
             )
         return DeckOut(
@@ -35,11 +35,11 @@ class DeckService:
             rows = await conn.fetch(
                 """
                 SELECT deck_id, owner_id, title, created_at
-                FROM app.decks
+                FROM public.decks
                 WHERE owner_id = $1
                 ORDER BY created_at DESC
                 """,
-                str(owner_id),
+                owner_id,
             )
         return [
             DeckOut(
@@ -56,10 +56,10 @@ class DeckService:
             row = await conn.fetchrow(
                 """
                 SELECT deck_id, owner_id, title, created_at
-                FROM app.decks
+                FROM public.decks
                 WHERE owner_id = $1 AND deck_id = $2
                 """,
-                str(owner_id),
+                owner_id,
                 deck_id,
             )
         if row is None:
