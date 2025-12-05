@@ -5,31 +5,59 @@ from uuid import UUID
 
 import asyncpg
 
-from domain.users.models import ProfileCreateInternal, ProfileOut
+from domain.users.models import ProfileUpdateInternal, ProfileOut
 
 
 class ProfileService:
     def __init__(self, pool: asyncpg.Pool):
         self._pool = pool
 
-    async def upsert_profile(self, payload: ProfileCreateInternal) -> ProfileOut:
+    async def update_profile(self, payload: ProfileUpdateInternal) -> ProfileOut:
+        """
+        Update the user's profile. Only updates fields that are not None.
+        Profile must already exist (created by signup trigger).
+        """
+        # Build dynamic UPDATE query for only provided fields
+        updates = []
+        values = []
+        param_num = 1
+        
+        if payload.username is not None:
+            updates.append(f"username = ${param_num}")
+            values.append(payload.username)
+            param_num += 1
+        
+        if payload.display_name is not None:
+            updates.append(f"display_name = ${param_num}")
+            values.append(payload.display_name)
+            param_num += 1
+        
+        if payload.avatar_url is not None:
+            updates.append(f"avatar_url = ${param_num}")
+            values.append(payload.avatar_url)
+            param_num += 1
+        
+        # If nothing to update, just fetch and return current profile
+        if not updates:
+            return await self.get_profile(payload.user_id)
+        
+        # Add user_id as last parameter for WHERE clause
+        values.append(payload.user_id)
+        
+        query = f"""
+            UPDATE public.users
+            SET {', '.join(updates)}
+            WHERE user_id = ${param_num}
+            RETURNING user_id, username, display_name, avatar_url, created_at
+        """
+        
         async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(
-                """
-                INSERT INTO public.users (user_id, username, display_name, avatar_url)
-                VALUES ($1, $2, $3, $4)
-                ON CONFLICT (user_id) DO UPDATE
-                   SET username = EXCLUDED.username,
-                       display_name = EXCLUDED.display_name,
-                       avatar_url = EXCLUDED.avatar_url
-                RETURNING user_id, username, display_name, avatar_url, created_at
-                """,
-                payload.user_id,
-                payload.username,
-                payload.display_name,
-                payload.avatar_url,
-            )
-
+            row = await conn.fetchrow(query, *values)
+        
+        if row is None:
+            # Profile doesn't exist yet (edge case - trigger should have created it)
+            raise ValueError("Profile not found. Please sign up first.")
+        
         return ProfileOut(
             user_id=row["user_id"],
             username=row["username"],

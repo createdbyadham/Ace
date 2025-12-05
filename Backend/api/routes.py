@@ -14,7 +14,7 @@ from domain.decks.models import DeckCreate, DeckOut
 from domain.decks.service import DeckService
 from domain.sr.models import DueCardOut, ReviewIn, ReviewOut
 from domain.sr.service import ReviewService
-from domain.users.models import ProfileCreate, ProfileCreateInternal, ProfileOut
+from domain.users.models import ProfileUpdate, ProfileUpdateInternal, ProfileOut
 from domain.users.service import ProfileService
 
 router = APIRouter()
@@ -38,33 +38,57 @@ def get_card_service(pool: asyncpg.Pool = Depends(get_pool)) -> CardService:
     return CardService(pool)
 
 
-@router.post("/users", response_model=ProfileOut)
-async def upsert_profile(
-    payload: ProfileCreate,
+@router.get("/users/me", response_model=ProfileOut)
+async def get_my_profile(
     user: CurrentUser = Depends(get_current_user),
     service: ProfileService = Depends(get_profile_service),
 ):
     """
-    Create or update the current user's profile.
+    Get the current user's profile.
+    
+    Profile is auto-created on signup with default username (email_prefix_xxxx).
+    """
+    profile = await service.get_profile(user.id)
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Profile not found. This shouldn't happen - contact support."
+        )
+    return profile
+
+
+@router.patch("/users/me", response_model=ProfileOut)
+async def update_my_profile(
+    payload: ProfileUpdate,
+    user: CurrentUser = Depends(get_current_user),
+    service: ProfileService = Depends(get_profile_service),
+):
+    """
+    Update the current user's profile.
     
     Requires: Authorization: Bearer <jwt>
     Body: { "username": "...", "display_name": "...", "avatar_url": "..." }
     
-    The user_id is taken from the JWT - users can only create their own profile.
+    All fields are optional - only provided fields will be updated.
+    Profile is auto-created on signup, so this is always an update.
     """
-    internal = ProfileCreateInternal(
+    internal = ProfileUpdateInternal(
         user_id=user.id,
         username=payload.username,
         display_name=payload.display_name,
         avatar_url=payload.avatar_url,
     )
-    return await service.upsert_profile(internal)
+    try:
+        return await service.update_profile(internal)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.get("/users/{user_id}", response_model=ProfileOut)
 async def get_profile(
     user_id: UUID, service: ProfileService = Depends(get_profile_service)
 ):
+    """Get any user's public profile by ID."""
     profile = await service.get_profile(user_id)
     if profile is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
