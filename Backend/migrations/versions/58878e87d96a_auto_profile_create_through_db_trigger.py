@@ -28,26 +28,31 @@ def upgrade():
     SET search_path = public
     AS $$
     DECLARE
-        base_username TEXT;
-        final_username TEXT;
-        suffix TEXT;
+        new_username TEXT;
+        new_display_name TEXT;
+        fallback_suffix TEXT;
     BEGIN
-        -- Start with email prefix as base username
-        base_username := COALESCE(
-            SPLIT_PART(NEW.email, '@', 1),
-            'user'
-        );
+        -- Get username from metadata (passed during signup)
+        -- Fallback to email prefix + UUID suffix if not provided
+        new_username := NEW.raw_user_meta_data->>'username';
         
-        -- Add short UUID suffix to ensure uniqueness
-        -- Format: emailprefix_a1b2c3d4
-        suffix := SUBSTRING(REPLACE(NEW.id::text, '-', ''), 1, 8);
-        final_username := base_username || '_' || suffix;
+        IF new_username IS NULL OR new_username = '' THEN
+            -- Fallback: email prefix + short UUID for uniqueness
+            fallback_suffix := SUBSTRING(REPLACE(NEW.id::text, '-', ''), 1, 8);
+            new_username := COALESCE(SPLIT_PART(NEW.email, '@', 1), 'user') || '_' || fallback_suffix;
+        END IF;
+        
+        -- Get display_name from metadata, fallback to username
+        new_display_name := COALESCE(
+            NULLIF(NEW.raw_user_meta_data->>'display_name', ''),
+            new_username
+        );
         
         INSERT INTO public.users (user_id, username, display_name)
         VALUES (
             NEW.id,
-            final_username,
-            base_username  -- Display name is just the email prefix (human readable)
+            new_username,
+            new_display_name
         )
         ON CONFLICT (user_id) DO NOTHING;  -- Safety: don't fail if profile already exists
         

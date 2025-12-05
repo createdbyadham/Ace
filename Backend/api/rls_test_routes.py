@@ -20,7 +20,14 @@ router = APIRouter(prefix="/test", tags=["RLS Tests"])
 # AUTH ENDPOINTS - Sign up / Sign in via Supabase GoTrue
 # ============================================================================
 
-class AuthRequest(BaseModel):
+class SignupRequest(BaseModel):
+    email: EmailStr
+    password: str
+    username: str
+    display_name: str | None = None
+
+
+class SigninRequest(BaseModel):
     email: EmailStr
     password: str
 
@@ -33,11 +40,16 @@ class AuthResponse(BaseModel):
 
 
 @router.post("/signup", response_model=AuthResponse)
-async def signup(payload: AuthRequest):
+async def signup(payload: SignupRequest):
     """
     Sign up a new user via Supabase Auth (GoTrue).
     
-    Returns the access_token (JWT) you can use for RLS testing.
+    Body: { "email": "...", "password": "...", "username": "...", "display_name": "..." }
+    
+    The username and display_name are stored in auth.users.raw_user_meta_data,
+    then the DB trigger automatically creates the public.users profile row.
+    
+    Returns the access_token (JWT).
     """
     if not settings.supabase_url or not settings.supabase_anon_key:
         raise HTTPException(
@@ -45,10 +57,20 @@ async def signup(payload: AuthRequest):
             detail="SUPABASE_URL and SUPABASE_ANON_KEY must be set"
         )
     
+    # Build the signup payload with metadata
+    signup_data = {
+        "email": payload.email,
+        "password": payload.password,
+        "data": {
+            "username": payload.username,
+            "display_name": payload.display_name or payload.username,
+        },
+    }
+    
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{settings.supabase_url}/auth/v1/signup",
-            json={"email": payload.email, "password": payload.password},
+            json=signup_data,
             headers={
                 "apikey": settings.supabase_anon_key,
                 "Content-Type": "application/json",
@@ -80,7 +102,7 @@ async def signup(payload: AuthRequest):
 
 
 @router.post("/signin", response_model=AuthResponse)
-async def signin(payload: AuthRequest):
+async def signin(payload: SigninRequest):
     """
     Sign in an existing user via Supabase Auth (GoTrue).
     
