@@ -54,7 +54,8 @@ class DatabasePool:
 
     async def disconnect(self) -> None:
         if self._pool is not None:
-            await self._pool.close()
+            # Terminate all connections immediately, don't wait for graceful close
+            self._pool.terminate()
             self._pool = None
 
     def get(self) -> asyncpg.Pool:

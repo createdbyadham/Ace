@@ -12,7 +12,16 @@ from domain.cards.models import CardCreate, CardOut
 from domain.cards.service import CardService
 from domain.decks.models import DeckCreate, DeckOut
 from domain.decks.service import DeckService
-from domain.sr.models import DueCardOut, ReviewIn, ReviewOut
+from domain.sr.models import (
+    DueCardOut, 
+    StudySessionOut,
+    UpcomingOut,
+    ReviewIn, 
+    ReviewOut,
+    SnoozeIn,
+    SnoozeOut,
+    DeckStatsOut,
+)
 from domain.sr.service import ReviewService
 from domain.users.models import ProfileUpdate, ProfileUpdateInternal, ProfileOut
 from domain.users.service import ProfileService
@@ -176,16 +185,21 @@ async def get_card(
 @router.get("/due", response_model=List[DueCardOut])
 async def fetch_due_cards(
     limit: int = 50,
+    deck_id: Optional[UUID] = None,
     user: CurrentUser = Depends(get_current_user),
     service: ReviewService = Depends(get_review_service),
 ):
-    """Get cards due for review for the current user."""
+    """
+    Get cards due for review for the current user.
+    
+    Optionally filter by deck_id.
+    """
     if limit <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="limit must be a positive integer",
         )
-    return await service.fetch_due_cards(user_id=user.id, limit=limit)
+    return await service.fetch_due_cards(user_id=user.id, limit=limit, deck_id=deck_id)
 
 
 @router.post("/review", response_model=ReviewOut)
@@ -194,13 +208,143 @@ async def submit_review(
     user: CurrentUser = Depends(get_current_user),
     service: ReviewService = Depends(get_review_service),
 ):
-    """Submit a review response for a card."""
+    """
+    Submit a review response for a card.
+    
+    Uses SM-2 algorithm to calculate next review date.
+    Quality mapping: got_it=5, meh=3, forgot=1
+    
+    Args (in body):
+        mode: 'review' (default) updates SM-2 state, 'all' is practice only (no tracking)
+    """
     if payload.response.lower() not in VALID_RESPONSES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"response must be one of: {', '.join(sorted(VALID_RESPONSES))}",
         )
-    return await service.process_review(payload=payload, user_id=user.id)
+    if payload.mode not in ("review", "all"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="mode must be 'review' or 'all'",
+        )
+    try:
+        return await service.process_review(payload=payload, user_id=user.id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+# =============================================================================
+# Deck Study Endpoints (Step 3 of plan.md)
+# =============================================================================
+
+@router.get("/decks/{deck_id}/study", response_model=StudySessionOut)
+async def get_deck_study_session(
+    deck_id: UUID,
+    limit: int = 20,
+    mode: str = "review",
+    user: CurrentUser = Depends(get_current_user),
+    service: ReviewService = Depends(get_review_service),
+):
+    """
+    Get study session for a specific deck.
+    
+    Args:
+        mode: Session type
+            - "review" (default): Cards due for review (SM-2 based, weak cards)
+            - "all": All cards in deck (normal session)
+    
+    Returns: Cards plus counts (due_count, total_count, mode).
+    
+    Frontend flow:
+        1. Call GET /decks/{deck_id}/stats to check if due_now > 0
+        2. If due_now > 0, show "You have X cards to review" prompt
+        3. User clicks "Review" → mode=review (due cards only)
+        4. User clicks "Practice All" → mode=all (all cards)
+    """
+    if limit <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="limit must be a positive integer",
+        )
+    if mode not in ("review", "all"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="mode must be 'review' or 'all'",
+        )
+    return await service.get_study_session(
+        user_id=user.id, deck_id=deck_id, limit=limit, mode=mode
+    )
+
+
+@router.get("/decks/{deck_id}/stats", response_model=DeckStatsOut)
+async def get_deck_stats(
+    deck_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    service: ReviewService = Depends(get_review_service),
+):
+    """
+    Get statistics for a specific deck.
+    
+    Returns counts: total, due_now, due_today, mastered, learning, new.
+    """
+    return await service.get_deck_stats(user_id=user.id, deck_id=deck_id)
+
+
+@router.get("/decks/{deck_id}/upcoming", response_model=UpcomingOut)
+async def get_deck_upcoming(
+    deck_id: UUID,
+    days: int = 7,
+    user: CurrentUser = Depends(get_current_user),
+    service: ReviewService = Depends(get_review_service),
+):
+    """
+    Get upcoming review schedule for a deck.
+    
+    Returns count of cards due per day for the next N days.
+    """
+    if days <= 0 or days > 30:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="days must be between 1 and 30",
+        )
+    return await service.get_upcoming(user_id=user.id, deck_id=deck_id, days=days)
+
+
+@router.post("/decks/{deck_id}/snooze", response_model=SnoozeOut)
+async def snooze_card(
+    deck_id: UUID,
+    payload: SnoozeIn,
+    user: CurrentUser = Depends(get_current_user),
+    service: ReviewService = Depends(get_review_service),
+):
+    """
+    Snooze a card - postpone its next review.
+    
+    Default: 24 hours. Range: 1-168 hours (1 week max).
+    """
+    try:
+        return await service.snooze_card(user_id=user.id, payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/upcoming", response_model=UpcomingOut)
+async def get_global_upcoming(
+    days: int = 7,
+    user: CurrentUser = Depends(get_current_user),
+    service: ReviewService = Depends(get_review_service),
+):
+    """
+    Get upcoming review schedule across all decks.
+    
+    Returns count of cards due per day for the next N days.
+    """
+    if days <= 0 or days > 30:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="days must be between 1 and 30",
+        )
+    return await service.get_upcoming(user_id=user.id, days=days)
 
 
 @router.get("/health")
