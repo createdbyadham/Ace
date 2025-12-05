@@ -1,11 +1,28 @@
 from __future__ import annotations
 
+import json
 from typing import Optional
 import ssl
 
 import asyncpg
 
 from core.config import settings
+
+
+async def _setup_json_codec(conn: asyncpg.Connection) -> None:
+    """Configure asyncpg to auto-encode/decode JSON and JSONB."""
+    await conn.set_type_codec(
+        'jsonb',
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema='pg_catalog'
+    )
+    await conn.set_type_codec(
+        'json',
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema='pg_catalog'
+    )
 
 
 class DatabasePool:
@@ -27,7 +44,11 @@ class DatabasePool:
                 database=settings.db_name,
                 min_size=1,
                 max_size=10,
-                ssl=ssl_context
+                ssl=ssl_context,
+                # Supabase uses PgBouncer which doesn't support prepared statements
+                statement_cache_size=0,
+                # Auto-setup JSON codec for every connection
+                init=_setup_json_codec,
             )
         return self._pool
 

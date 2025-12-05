@@ -13,6 +13,7 @@ class CardService:
         self._pool = pool
 
     async def create_card(self, *, owner_id: UUID, payload: CardCreate) -> CardOut:
+        # asyncpg auto-encodes dicts to JSON via pool's init codec
         content = payload.content.model_dump()
         async with self._pool.acquire() as conn:
             if payload.deck_id is not None:
@@ -28,7 +29,7 @@ class CardService:
             row = await conn.fetchrow(
                 """
                 INSERT INTO public.cards (deck_id, owner_id, content)
-                VALUES ($1, $2, $3::jsonb)
+                VALUES ($1, $2, $3)
                 RETURNING card_id, deck_id, owner_id, content, created_at
                 """,
                 payload.deck_id,
