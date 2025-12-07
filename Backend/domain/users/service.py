@@ -5,7 +5,13 @@ from uuid import UUID
 
 import asyncpg
 
-from domain.users.models import ProfileUpdateInternal, ProfileOut
+from domain.users.models import (
+    ProfileUpdateInternal, 
+    ProfileOut,
+    GamificationOut,
+    calculate_level,
+    calculate_streak_multiplier,
+)
 
 
 class ProfileService:
@@ -48,7 +54,7 @@ class ProfileService:
             UPDATE public.users
             SET {', '.join(updates)}
             WHERE user_id = ${param_num}
-            RETURNING user_id, username, display_name, avatar_url, created_at
+            RETURNING user_id, username, display_name, avatar_url, streak, xp, created_at
         """
         
         async with self._pool.acquire() as conn:
@@ -63,6 +69,8 @@ class ProfileService:
             username=row["username"],
             display_name=row["display_name"],
             avatar_url=row["avatar_url"],
+            streak=row["streak"] or 0,
+            xp=row["xp"] or 0,
             created_at=row["created_at"],
         )
 
@@ -70,7 +78,7 @@ class ProfileService:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT user_id, username, display_name, avatar_url, created_at
+                SELECT user_id, username, display_name, avatar_url, streak, xp, created_at
                 FROM public.users
                 WHERE user_id = $1
                 """,
@@ -83,7 +91,36 @@ class ProfileService:
             username=row["username"],
             display_name=row["display_name"],
             avatar_url=row["avatar_url"],
+            streak=row["streak"] or 0,
+            xp=row["xp"] or 0,
             created_at=row["created_at"],
+        )
+
+    async def get_gamification(self, user_id: UUID) -> Optional[GamificationOut]:
+        """Get detailed gamification stats for user."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT streak, xp
+                FROM public.users
+                WHERE user_id = $1
+                """,
+                user_id,
+            )
+        if row is None:
+            return None
+        
+        streak = row["streak"] or 0
+        xp = row["xp"] or 0
+        level, xp_in_current, xp_to_next = calculate_level(xp)
+        
+        return GamificationOut(
+            streak=streak,
+            xp=xp,
+            level=level,
+            xp_to_next_level=xp_to_next,
+            xp_in_current_level=xp_in_current,
+            streak_multiplier=calculate_streak_multiplier(streak),
         )
 
 

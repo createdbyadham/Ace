@@ -23,7 +23,7 @@ from domain.sr.models import (
     DeckStatsOut,
 )
 from domain.sr.service import ReviewService
-from domain.users.models import ProfileUpdate, ProfileUpdateInternal, ProfileOut
+from domain.users.models import ProfileUpdate, ProfileUpdateInternal, ProfileOut, GamificationOut
 from domain.users.service import ProfileService
 
 router = APIRouter()
@@ -91,6 +91,25 @@ async def update_my_profile(
         return await service.update_profile(internal)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/users/me/gamification", response_model=GamificationOut)
+async def get_my_gamification(
+    user: CurrentUser = Depends(get_current_user),
+    service: ProfileService = Depends(get_profile_service),
+):
+    """
+    Get detailed gamification stats for the current user.
+    
+    Returns: streak, xp, level, xp_to_next_level, xp_in_current_level, streak_multiplier.
+    """
+    stats = await service.get_gamification(user.id)
+    if stats is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found. This shouldn't happen - contact support."
+        )
+    return stats
 
 
 @router.get("/users/{user_id}", response_model=ProfileOut)

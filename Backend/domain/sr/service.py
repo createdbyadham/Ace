@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from datetime import datetime, timedelta, timezone, date
+from typing import List, Optional, Tuple
 from uuid import UUID
 
 import asyncpg
@@ -18,6 +18,7 @@ from domain.sr.models import (
     SnoozeOut,
     DeckStatsOut,
 )
+from domain.users.models import calculate_xp_earned
 
 
 class ReviewService:
@@ -359,8 +360,13 @@ class ReviewService:
                 result = compute_sm2(prev_repetition, prev_interval, prev_ef, payload.response)
                 next_review_at = datetime.now(timezone.utc) + timedelta(days=result.interval_days)
 
-                # Insert review log with quality
-                await self._insert_review_log(conn, payload, user_id, result.quality)
+                # Update XP and streak
+                xp_earned, new_streak, streak_updated = await self._update_xp_and_streak(
+                    conn, user_id, payload.response
+                )
+
+                # Insert review log with quality and XP
+                await self._insert_review_log(conn, payload, user_id, result.quality, xp_earned)
 
                 # Update state with optimistic locking
                 updated = await conn.fetchrow(
@@ -396,6 +402,9 @@ class ReviewService:
                     ef=result.ef,
                     next_review_at=next_review_at,
                     quality=result.quality,
+                    xp_earned=xp_earned,
+                    streak=new_streak,
+                    streak_updated=streak_updated,
                 )
 
     async def _handle_practice_review(self, payload: ReviewIn) -> ReviewOut:
@@ -455,6 +464,80 @@ class ReviewService:
     # Private Helpers
     # =========================================================================
     
+    async def _update_xp_and_streak(
+        self,
+        conn: asyncpg.Connection,
+        user_id: UUID,
+        response: str,
+    ) -> Tuple[int, int, bool]:
+        """
+        Update user's XP and streak atomically.
+        
+        Streak logic:
+        - If last_seen_at is today: no streak change (already counted today)
+        - If last_seen_at is yesterday: increment streak
+        - If last_seen_at is older: reset streak to 1
+        
+        Returns: (xp_earned, new_streak, streak_updated)
+        """
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+        
+        # Get current user state
+        user_row = await conn.fetchrow(
+            """
+            SELECT streak, xp, DATE(last_seen_at AT TIME ZONE 'UTC') as last_seen_date
+            FROM public.users
+            WHERE user_id = $1
+            FOR UPDATE
+            """,
+            user_id,
+        )
+        
+        if user_row is None:
+            # User doesn't exist in public.users - shouldn't happen with trigger
+            return 0, 0, False
+        
+        current_streak = user_row["streak"] or 0
+        current_xp = user_row["xp"] or 0
+        last_seen_date = user_row["last_seen_date"]
+        
+        # Calculate streak
+        streak_updated = False
+        if last_seen_date is None:
+            # First activity ever
+            new_streak = 1
+            streak_updated = True
+        elif last_seen_date == today:
+            # Already active today - no streak change
+            new_streak = current_streak
+        elif last_seen_date == yesterday:
+            # Consecutive day - increment streak
+            new_streak = current_streak + 1
+            streak_updated = True
+        else:
+            # Missed a day - reset streak
+            new_streak = 1
+            streak_updated = True
+        
+        # Calculate XP with streak multiplier (use new_streak for the multiplier)
+        _, xp_earned = calculate_xp_earned(response, new_streak)
+        new_xp = current_xp + xp_earned
+        
+        # Update user
+        await conn.execute(
+            """
+            UPDATE public.users
+            SET streak = $1, xp = $2, last_seen_at = now(), updated_at = now()
+            WHERE user_id = $3
+            """,
+            new_streak,
+            new_xp,
+            user_id,
+        )
+        
+        return xp_earned, new_streak, streak_updated
+    
     async def _handle_idempotent_review(
         self, 
         conn: asyncpg.Connection, 
@@ -467,9 +550,11 @@ class ReviewService:
 
         existing = await conn.fetchrow(
             """
-            SELECT r.quality, s.repetition, s.interval_days, s.ef, s.next_review_at
+            SELECT r.quality, s.repetition, s.interval_days, s.ef, s.next_review_at,
+                   u.streak, COALESCE((r.metadata->>'xp_earned')::int, 0) as xp_earned
             FROM public.reviews r
             JOIN public.states s ON s.user_id = r.user_id AND s.card_id = r.card_id
+            JOIN public.users u ON u.user_id = r.user_id
             WHERE r.metadata->>'client_review_id' = $1 AND r.user_id = $2
             """,
             payload.client_review_id,
@@ -486,6 +571,9 @@ class ReviewService:
             ef=float(existing["ef"] or 2.5),
             next_review_at=existing["next_review_at"],
             quality=existing["quality"] or 3,
+            xp_earned=existing["xp_earned"],
+            streak=existing["streak"] or 0,
+            streak_updated=False,  # Already processed
         )
 
     async def _insert_review_log(
@@ -494,9 +582,10 @@ class ReviewService:
         payload: ReviewIn, 
         user_id: UUID,
         quality: int,
+        xp_earned: int = 0,
     ) -> None:
         """Insert review into audit log."""
-        metadata = {"source": "fastapi-service"}
+        metadata = {"source": "fastapi-service", "xp_earned": xp_earned}
         if payload.client_review_id:
             metadata["client_review_id"] = payload.client_review_id
 

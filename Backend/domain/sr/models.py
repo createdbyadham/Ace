@@ -71,6 +71,10 @@ class ReviewOut(BaseModel):
     ef: float           # Updated easiness factor
     next_review_at: datetime
     quality: int        # Quality score used (1-5)
+    # Gamification
+    xp_earned: int = 0          # XP earned from this review
+    streak: int = 0             # Current streak after this review
+    streak_updated: bool = False  # True if streak was incremented this review
 
 
 # =============================================================================
