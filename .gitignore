@@ -3,3 +3,13 @@ venv/
 *.env
 .pytest_cache/
 *.sql
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+count.txt
+.env
+.nitro
+.tanstack
+.wrangler
