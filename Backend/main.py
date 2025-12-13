@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from api.routes import router
 from api.rls_test_routes import router as rls_test_router
 from api.chatbot_routes import router as chatbot_router
+from api.agent_routes import router as agent_router
 from db.pool import close_pool, init_pool
 
 
@@ -29,6 +30,7 @@ def create_app() -> FastAPI:
     application.include_router(router)
     application.include_router(rls_test_router)
     application.include_router(chatbot_router)
+    application.include_router(agent_router)
 
     return application
 
