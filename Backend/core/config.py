@@ -19,6 +19,17 @@ class Settings:
     supabase_url: str = os.getenv("SUPABASE_URL", "")  # e.g. https://xxxxx.supabase.co
     supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY", "")  # anon key (NOT service role)
     
+    # Chatbot / RAG settings
+    github_token: str = os.getenv("GITHUB_TOKEN", "")
+    llm_endpoint: str = os.getenv("LLM_ENDPOINT", "")
+    llm_model: str = os.getenv("LLM_MODEL", "")
+    
+    # ChromaDB settings
+    chroma_persist_dir: str = os.getenv("CHROMA_PERSIST_DIR", "")
+    
+    # Embedding model (sentence-transformers)
+    embedding_model: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+    
     def __post_init__(self):
         if not all([self.db_user, self.db_password, self.db_host]):
             raise ValueError(

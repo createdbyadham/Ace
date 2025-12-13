@@ -65,3 +65,8 @@ Thumbs.db
 
 # Misc project files
 count.txt
+
+# ChromaDB data
+chroma_data/
+*.db
+*.bin

@@ -9,3 +9,13 @@ httpx
 python-dotenv
 psycopg2
 alembic
+# Chatbot / RAG dependencies
+openai
+chromadb
+langchain==0.3.26
+langchain-community==0.3.26
+langchain-core==0.3.68
+langchain-text-splitters
+sentence-transformers==5.0.0
+pypdf
+python-multipart

@@ -1,0 +1,155 @@
+"""
+API routes for chatbot with RAG.
+
+Endpoints:
+- POST /chat - Chat with the AI
+- POST /chat/upload - Upload PDF documents
+- DELETE /chat/session/{session_id} - Clear a chat session
+- GET /chat/documents/count - Get document count
+"""
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+
+from api.auth import CurrentUser, get_current_user
+from domain.chatbot.models import ChatRequest, ChatResponse, UploadResponse
+from domain.chatbot.service import ChatbotService, get_chatbot_service
+
+router = APIRouter(prefix="/chat", tags=["chatbot"])
+
+
+@router.post("", response_model=ChatResponse)
+async def chat(
+    request: ChatRequest,
+    user: CurrentUser = Depends(get_current_user),
+    service: ChatbotService = Depends(get_chatbot_service),
+):
+    """
+    Chat with the AI assistant.
+    
+    The AI uses RAG to answer questions based on uploaded PDF documents.
+    Conversation history is maintained per session.
+    
+    Args:
+        message: Your question or message
+        session_id: Optional - provide to continue a conversation
+        
+    Returns:
+        AI response with session_id and source documents used
+    """
+    try:
+        return service.chat(
+            message=request.message,
+            session_id=request.session_id,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Chat error: {str(exc)}",
+        ) from exc
+
+
+@router.post("/upload", response_model=UploadResponse)
+async def upload_pdf(
+    file: UploadFile = File(...),
+    user: CurrentUser = Depends(get_current_user),
+    service: ChatbotService = Depends(get_chatbot_service),
+):
+    """
+    Upload a PDF document to the knowledge base.
+    
+    The PDF will be processed, chunked, and stored in the vector database.
+    Once uploaded, the AI can answer questions about the document's content.
+    
+    Args:
+        file: PDF file to upload
+        
+    Returns:
+        Upload confirmation with chunk count and document ID
+    """
+    # Validate file type
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename is required",
+        )
+    
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are supported",
+        )
+    
+    # Validate content type
+    if file.content_type and file.content_type != "application/pdf":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid content type. Expected application/pdf",
+        )
+    
+    try:
+        # Read file content
+        pdf_bytes = await file.read()
+        
+        if len(pdf_bytes) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Empty file",
+            )
+        
+        # Process and store
+        chunks_created, document_id = service.upload_pdf(pdf_bytes, file.filename)
+        
+        return UploadResponse(
+            message="PDF uploaded and processed successfully",
+            filename=file.filename,
+            chunks_created=chunks_created,
+            document_id=document_id,
+        )
+    
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Upload error: {str(exc)}",
+        ) from exc
+
+
+@router.delete("/session/{session_id}")
+async def clear_session(
+    session_id: str,
+    user: CurrentUser = Depends(get_current_user),
+    service: ChatbotService = Depends(get_chatbot_service),
+):
+    """
+    Clear a chat session's memory.
+    
+    This removes all conversation history for the given session.
+    """
+    cleared = service.clear_session(session_id)
+    if not cleared:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+    return {"message": "Session cleared", "session_id": session_id}
+
+
+@router.get("/documents/count")
+async def get_document_count(
+    user: CurrentUser = Depends(get_current_user),
+    service: ChatbotService = Depends(get_chatbot_service),
+):
+    """
+    Get the number of document chunks in the knowledge base.
+    """
+    count = service.get_document_count()
+    return {"chunk_count": count}
+
+
+__all__ = ["router"]
+

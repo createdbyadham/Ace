@@ -9,9 +9,17 @@ from dataclasses import dataclass
 from uuid import UUID
 
 import httpx
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.config import settings
+
+# Security scheme for Swagger UI - shows "Authorize" button
+security = HTTPBearer(
+    scheme_name="Bearer JWT",
+    description="Enter your Supabase JWT token (without 'Bearer ' prefix)",
+    auto_error=True,
+)
 
 
 @dataclass
@@ -21,7 +29,9 @@ class CurrentUser:
     email: str
 
 
-async def get_current_user(authorization: str | None = Header(None)) -> CurrentUser:
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> CurrentUser:
     """
     Dependency that validates the JWT via Supabase Auth and returns the current user.
     
@@ -30,19 +40,7 @@ async def get_current_user(authorization: str | None = Header(None)) -> CurrentU
         async def my_endpoint(user: CurrentUser = Depends(get_current_user)):
             print(user.id, user.email)
     """
-    if not authorization:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Authorization header",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header must start with 'Bearer '",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    token = credentials.credentials
     
     if not settings.supabase_url or not settings.supabase_anon_key:
         raise HTTPException(
@@ -55,7 +53,7 @@ async def get_current_user(authorization: str | None = Header(None)) -> CurrentU
         resp = await client.get(
             f"{settings.supabase_url}/auth/v1/user",
             headers={
-                "Authorization": authorization,
+                "Authorization": f"Bearer {token}",
                 "apikey": settings.supabase_anon_key,
             },
         )
