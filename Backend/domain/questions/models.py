@@ -4,31 +4,28 @@ Models for MCQ question sets.
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
-
-
-class MCQOption(str, Enum):
-    """Valid MCQ answer options."""
-    A = "A"
-    B = "B"
-    C = "C"
-    D = "D"
+from pydantic import BaseModel, Field, field_validator
 
 
 class QuestionCreate(BaseModel):
     """Create a single MCQ question."""
     question_text: str = Field(..., min_length=1)
-    option_a: str = Field(..., min_length=1)
-    option_b: str = Field(..., min_length=1)
-    option_c: str = Field(..., min_length=1)
-    option_d: str = Field(..., min_length=1)
-    correct_answer: MCQOption
+    options: List[str] = Field(..., min_length=4, max_length=4, description="Exactly 4 options")
+    correct_answer: int = Field(..., ge=0, le=3, description="Index of correct option (0-3)")
     explanation: Optional[str] = None
     source_file: Optional[str] = None
+    
+    @field_validator("options")
+    @classmethod
+    def validate_options(cls, v: List[str]) -> List[str]:
+        if len(v) != 4:
+            raise ValueError("Must have exactly 4 options")
+        if any(not opt.strip() for opt in v):
+            raise ValueError("All options must be non-empty")
+        return v
 
 
 class QuestionOut(BaseModel):
@@ -37,11 +34,8 @@ class QuestionOut(BaseModel):
     set_id: UUID
     owner_id: UUID
     question_text: str
-    option_a: str
-    option_b: str
-    option_c: str
-    option_d: str
-    correct_answer: str
+    options: List[str]
+    correct_answer: int
     explanation: Optional[str] = None
     source_file: Optional[str] = None
     created_at: datetime
@@ -77,11 +71,9 @@ class QuestionSetWithQuestions(BaseModel):
 
 
 __all__ = [
-    "MCQOption",
     "QuestionCreate",
     "QuestionOut",
     "QuestionSetCreate",
     "QuestionSetOut",
     "QuestionSetWithQuestions",
 ]
-

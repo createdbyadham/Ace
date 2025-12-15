@@ -14,7 +14,6 @@ from openai import OpenAI
 
 from core.config import settings
 from domain.chatbot.pdf_processor import PDFProcessor
-from domain.questions.models import MCQOption
 
 
 class GeneratedMCQ:
@@ -22,30 +21,21 @@ class GeneratedMCQ:
     def __init__(
         self,
         question_text: str,
-        option_a: str,
-        option_b: str,
-        option_c: str,
-        option_d: str,
-        correct_answer: str,
+        options: List[str],
+        correct_answer: int,
         explanation: str,
         source_file: str,
     ):
         self.question_text = question_text
-        self.option_a = option_a
-        self.option_b = option_b
-        self.option_c = option_c
-        self.option_d = option_d
-        self.correct_answer = correct_answer
+        self.options = options  # List of 4 options
+        self.correct_answer = correct_answer  # Index 0-3
         self.explanation = explanation
         self.source_file = source_file
     
     def to_dict(self) -> dict:
         return {
             "question_text": self.question_text,
-            "option_a": self.option_a,
-            "option_b": self.option_b,
-            "option_c": self.option_c,
-            "option_d": self.option_d,
+            "options": self.options,
             "correct_answer": self.correct_answer,
             "explanation": self.explanation,
             "source_file": self.source_file,
@@ -136,8 +126,8 @@ Based on the following lecture/document content, create exactly {num_questions} 
 
 Requirements for each question:
 - Question: A clear, specific question that tests understanding
-- Four options (A, B, C, D): All plausible, but only ONE is correct
-- Correct Answer: The letter of the correct option (A, B, C, or D)
+- Four options: All plausible, but only ONE is correct
+- Correct Answer: The index (0, 1, 2, or 3) of the correct option
 - Explanation: Brief explanation of why the correct answer is right
 
 Guidelines:
@@ -153,17 +143,14 @@ Document content:
 ---
 
 Return your response as a JSON array with exactly {num_questions} objects.
-Each object must have these keys: "question", "option_a", "option_b", "option_c", "option_d", "correct_answer", "explanation"
+Each object must have these keys: "question", "options" (array of 4 strings), "correct_answer" (index 0-3), "explanation"
 
 Example format:
 [
   {{
     "question": "What is the primary function of mitochondria?",
-    "option_a": "Protein synthesis",
-    "option_b": "Energy production (ATP)",
-    "option_c": "Cell division",
-    "option_d": "Waste removal",
-    "correct_answer": "B",
+    "options": ["Protein synthesis", "Energy production (ATP)", "Cell division", "Waste removal"],
+    "correct_answer": 1,
     "explanation": "Mitochondria are known as the powerhouse of the cell because they produce ATP through cellular respiration."
   }}
 ]
@@ -199,18 +186,23 @@ Return ONLY the JSON array, no other text."""
         
         questions = []
         for q_data in questions_data[:num_questions]:
-            # Validate correct_answer
-            correct = q_data.get("correct_answer", "A").upper()
-            if correct not in ["A", "B", "C", "D"]:
-                correct = "A"  # Default fallback
+            # Validate correct_answer index
+            correct_idx = q_data.get("correct_answer", 0)
+            if not isinstance(correct_idx, int) or correct_idx < 0 or correct_idx > 3:
+                correct_idx = 0  # Default fallback
+            
+            # Ensure we have exactly 4 options
+            options = q_data.get("options", [])
+            if len(options) != 4:
+                # Try to pad or truncate
+                while len(options) < 4:
+                    options.append(f"Option {len(options) + 1}")
+                options = options[:4]
             
             questions.append(GeneratedMCQ(
                 question_text=q_data["question"],
-                option_a=q_data["option_a"],
-                option_b=q_data["option_b"],
-                option_c=q_data["option_c"],
-                option_d=q_data["option_d"],
-                correct_answer=correct,
+                options=options,
+                correct_answer=correct_idx,
                 explanation=q_data.get("explanation", ""),
                 source_file=filename,
             ))
@@ -279,22 +271,18 @@ Return ONLY the JSON array, no other text."""
                 )
                 set_id = set_row["set_id"]
                 
-                # Create questions
+                # Create questions - pass list directly, asyncpg handles JSON encoding
                 for q in all_questions:
                     await conn.execute(
                         """
                         INSERT INTO public.questions 
-                            (set_id, owner_id, question_text, option_a, option_b, option_c, option_d,
-                             correct_answer, explanation, source_file)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                            (set_id, owner_id, question_text, options, correct_answer, explanation, source_file)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7)
                         """,
                         set_id,
                         owner_id,
                         q.question_text,
-                        q.option_a,
-                        q.option_b,
-                        q.option_c,
-                        q.option_d,
+                        q.options,  # Pass list directly
                         q.correct_answer,
                         q.explanation,
                         q.source_file,
@@ -310,4 +298,3 @@ Return ONLY the JSON array, no other text."""
 
 
 __all__ = ["MCQAgent", "GeneratedMCQ", "MCQGenerationResponse"]
-

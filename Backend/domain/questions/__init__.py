@@ -1,18 +1,18 @@
 from .models import (
     QuestionSetCreate,
     QuestionSetOut,
+    QuestionSetWithQuestions,
     QuestionCreate,
     QuestionOut,
-    MCQOption,
 )
 from .service import QuestionService
 
 __all__ = [
     "QuestionSetCreate",
     "QuestionSetOut",
+    "QuestionSetWithQuestions",
     "QuestionCreate",
     "QuestionOut",
-    "MCQOption",
     "QuestionService",
 ]
 

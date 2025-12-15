@@ -197,7 +197,7 @@ Return ONLY the JSON array, no other text."""
                 )
                 deck_id = deck_row["deck_id"]
                 
-                # Create cards
+                # Create cards - pass dict directly, asyncpg handles JSON encoding
                 for card in all_cards:
                     content = {"front": card.front, "back": card.back}
                     await conn.execute(
@@ -207,7 +207,7 @@ Return ONLY the JSON array, no other text."""
                         """,
                         deck_id,
                         owner_id,
-                        json.dumps(content),
+                        content,
                     )
         
         return FlashcardGenerationResponse(

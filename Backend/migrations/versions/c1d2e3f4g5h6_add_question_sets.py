@@ -75,4 +75,3 @@ def downgrade() -> None:
     op.execute("DROP TRIGGER IF EXISTS update_question_sets_updated_at ON public.question_sets")
     op.execute("DROP TABLE IF EXISTS public.questions")
     op.execute("DROP TABLE IF EXISTS public.question_sets")
-

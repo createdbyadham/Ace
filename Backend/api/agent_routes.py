@@ -33,11 +33,8 @@ def get_mcq_agent(pool: asyncpg.Pool = Depends(get_pool)) -> MCQAgent:
 # Response model for MCQ generation (for OpenAPI docs)
 class GeneratedMCQOut(BaseModel):
     question_text: str
-    option_a: str
-    option_b: str
-    option_c: str
-    option_d: str
-    correct_answer: str
+    options: List[str] = Field(..., description="Array of 4 options")
+    correct_answer: int = Field(..., ge=0, le=3, description="Index of correct option (0-3)")
     explanation: str
     source_file: str
 
@@ -231,10 +228,7 @@ async def generate_mcq_questions(
             questions=[
                 GeneratedMCQOut(
                     question_text=q.question_text,
-                    option_a=q.option_a,
-                    option_b=q.option_b,
-                    option_c=q.option_c,
-                    option_d=q.option_d,
+                    options=q.options,
                     correct_answer=q.correct_answer,
                     explanation=q.explanation,
                     source_file=q.source_file,

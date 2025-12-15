@@ -105,8 +105,7 @@ class QuestionService:
             question_rows = await conn.fetch(
                 """
                 SELECT question_id, set_id, owner_id, question_text,
-                       option_a, option_b, option_c, option_d,
-                       correct_answer, explanation, source_file, created_at
+                       options, correct_answer, explanation, source_file, created_at
                 FROM public.questions
                 WHERE set_id = $1
                 ORDER BY created_at
@@ -120,10 +119,7 @@ class QuestionService:
                 set_id=row["set_id"],
                 owner_id=row["owner_id"],
                 question_text=row["question_text"],
-                option_a=row["option_a"],
-                option_b=row["option_b"],
-                option_c=row["option_c"],
-                option_d=row["option_d"],
+                options=row["options"] if isinstance(row["options"], list) else json.loads(row["options"]),
                 correct_answer=row["correct_answer"],
                 explanation=row["explanation"],
                 source_file=row["source_file"],
@@ -164,21 +160,16 @@ class QuestionService:
             row = await conn.fetchrow(
                 """
                 INSERT INTO public.questions 
-                    (set_id, owner_id, question_text, option_a, option_b, option_c, option_d,
-                     correct_answer, explanation, source_file)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    (set_id, owner_id, question_text, options, correct_answer, explanation, source_file)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING question_id, set_id, owner_id, question_text,
-                          option_a, option_b, option_c, option_d,
-                          correct_answer, explanation, source_file, created_at
+                          options, correct_answer, explanation, source_file, created_at
                 """,
                 set_id,
                 owner_id,
                 payload.question_text,
-                payload.option_a,
-                payload.option_b,
-                payload.option_c,
-                payload.option_d,
-                payload.correct_answer.value,
+                payload.options,  # Pass list directly, asyncpg handles JSON encoding
+                payload.correct_answer,
                 payload.explanation,
                 payload.source_file,
             )
@@ -188,10 +179,7 @@ class QuestionService:
             set_id=row["set_id"],
             owner_id=row["owner_id"],
             question_text=row["question_text"],
-            option_a=row["option_a"],
-            option_b=row["option_b"],
-            option_c=row["option_c"],
-            option_d=row["option_d"],
+            options=row["options"] if isinstance(row["options"], list) else json.loads(row["options"]),
             correct_answer=row["correct_answer"],
             explanation=row["explanation"],
             source_file=row["source_file"],
@@ -214,4 +202,3 @@ class QuestionService:
 
 
 __all__ = ["QuestionService"]
-
