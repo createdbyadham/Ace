@@ -28,9 +28,19 @@ class CardOut(BaseModel):
     created_at: datetime
 
 
+# Card update model
+class CardUpdate(BaseModel):
+    deck_id: Optional[UUID] = None
+    content: Optional[CardContent] = None
+
+
 # Deck models
 class DeckCreate(BaseModel):
     title: str
+
+
+class DeckUpdate(BaseModel):
+    title: Optional[str] = None
 
 
 class DeckOut(BaseModel):
@@ -40,5 +50,13 @@ class DeckOut(BaseModel):
     created_at: datetime
 
 
-__all__ = ["CardContent", "CardCreate", "CardOut", "DeckCreate", "DeckOut"]
+__all__ = [
+    "CardContent",
+    "CardCreate",
+    "CardUpdate",
+    "CardOut",
+    "DeckCreate",
+    "DeckUpdate",
+    "DeckOut",
+]
 
