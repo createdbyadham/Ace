@@ -28,6 +28,25 @@ class QuestionCreate(BaseModel):
         return v
 
 
+class QuestionUpdate(BaseModel):
+    """Update a question. All fields optional."""
+    question_text: Optional[str] = Field(default=None, min_length=1)
+    options: Optional[List[str]] = Field(default=None, min_length=4, max_length=4)
+    correct_answer: Optional[int] = Field(default=None, ge=0, le=3)
+    explanation: Optional[str] = None
+    
+    @field_validator("options")
+    @classmethod
+    def validate_options(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return v
+        if len(v) != 4:
+            raise ValueError("Must have exactly 4 options")
+        if any(not opt.strip() for opt in v):
+            raise ValueError("All options must be non-empty")
+        return v
+
+
 class QuestionOut(BaseModel):
     """Output model for a question."""
     question_id: UUID
@@ -46,6 +65,13 @@ class QuestionSetCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=1000)
     tags: List[str] = Field(default_factory=list)
+
+
+class QuestionSetUpdate(BaseModel):
+    """Update a question set. All fields optional."""
+    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    tags: Optional[List[str]] = None
 
 
 class QuestionSetOut(BaseModel):
@@ -72,8 +98,10 @@ class QuestionSetWithQuestions(BaseModel):
 
 __all__ = [
     "QuestionCreate",
+    "QuestionUpdate",
     "QuestionOut",
     "QuestionSetCreate",
+    "QuestionSetUpdate",
     "QuestionSetOut",
     "QuestionSetWithQuestions",
 ]

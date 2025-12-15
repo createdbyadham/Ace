@@ -11,8 +11,10 @@ import asyncpg
 
 from .models import (
     QuestionCreate,
+    QuestionUpdate,
     QuestionOut,
     QuestionSetCreate,
+    QuestionSetUpdate,
     QuestionSetOut,
     QuestionSetWithQuestions,
 )
@@ -186,6 +188,90 @@ class QuestionService:
             created_at=row["created_at"],
         )
 
+    async def update_question_set(
+        self,
+        *,
+        owner_id: UUID,
+        set_id: UUID,
+        payload: QuestionSetUpdate,
+    ) -> Optional[QuestionSetOut]:
+        """Update a question set."""
+        # Build dynamic update query
+        updates = []
+        params = []
+        param_idx = 3  # $1 = set_id, $2 = owner_id
+        
+        if payload.title is not None:
+            updates.append(f"title = ${param_idx}")
+            params.append(payload.title)
+            param_idx += 1
+        
+        if payload.description is not None:
+            updates.append(f"description = ${param_idx}")
+            params.append(payload.description)
+            param_idx += 1
+        
+        if payload.tags is not None:
+            updates.append(f"tags = ${param_idx}")
+            params.append(payload.tags)
+            param_idx += 1
+        
+        if not updates:
+            # Nothing to update, just return current
+            return await self._get_question_set_basic(owner_id=owner_id, set_id=set_id)
+        
+        query = f"""
+            UPDATE public.question_sets
+            SET {", ".join(updates)}
+            WHERE set_id = $1 AND owner_id = $2 AND deleted_at IS NULL
+            RETURNING set_id, owner_id, title, description, tags, created_at
+        """
+        
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(query, set_id, owner_id, *params)
+        
+        if row is None:
+            return None
+        
+        return QuestionSetOut(
+            set_id=row["set_id"],
+            owner_id=row["owner_id"],
+            title=row["title"],
+            description=row["description"],
+            tags=row["tags"] if row["tags"] else [],
+            created_at=row["created_at"],
+            questions_count=0,  # Not fetching count for update response
+        )
+
+    async def _get_question_set_basic(
+        self,
+        *,
+        owner_id: UUID,
+        set_id: UUID,
+    ) -> Optional[QuestionSetOut]:
+        """Get basic question set info without questions."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT set_id, owner_id, title, description, tags, created_at
+                FROM public.question_sets
+                WHERE set_id = $1 AND owner_id = $2 AND deleted_at IS NULL
+                """,
+                set_id,
+                owner_id,
+            )
+        if row is None:
+            return None
+        return QuestionSetOut(
+            set_id=row["set_id"],
+            owner_id=row["owner_id"],
+            title=row["title"],
+            description=row["description"],
+            tags=row["tags"] if row["tags"] else [],
+            created_at=row["created_at"],
+            questions_count=0,
+        )
+
     async def delete_question_set(self, *, owner_id: UUID, set_id: UUID) -> bool:
         """Soft delete a question set."""
         async with self._pool.acquire() as conn:
@@ -199,6 +285,114 @@ class QuestionService:
                 owner_id,
             )
         return result == "UPDATE 1"
+
+    async def get_question(
+        self,
+        *,
+        owner_id: UUID,
+        question_id: UUID,
+    ) -> Optional[QuestionOut]:
+        """Get a single question by ID."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT question_id, set_id, owner_id, question_text,
+                       options, correct_answer, explanation, source_file, created_at
+                FROM public.questions
+                WHERE question_id = $1 AND owner_id = $2
+                """,
+                question_id,
+                owner_id,
+            )
+        if row is None:
+            return None
+        return QuestionOut(
+            question_id=row["question_id"],
+            set_id=row["set_id"],
+            owner_id=row["owner_id"],
+            question_text=row["question_text"],
+            options=row["options"] if isinstance(row["options"], list) else json.loads(row["options"]),
+            correct_answer=row["correct_answer"],
+            explanation=row["explanation"],
+            source_file=row["source_file"],
+            created_at=row["created_at"],
+        )
+
+    async def update_question(
+        self,
+        *,
+        owner_id: UUID,
+        question_id: UUID,
+        payload: QuestionUpdate,
+    ) -> Optional[QuestionOut]:
+        """Update a question."""
+        # Build dynamic update query
+        updates = []
+        params = []
+        param_idx = 3  # $1 = question_id, $2 = owner_id
+        
+        if payload.question_text is not None:
+            updates.append(f"question_text = ${param_idx}")
+            params.append(payload.question_text)
+            param_idx += 1
+        
+        if payload.options is not None:
+            updates.append(f"options = ${param_idx}")
+            params.append(payload.options)
+            param_idx += 1
+        
+        if payload.correct_answer is not None:
+            updates.append(f"correct_answer = ${param_idx}")
+            params.append(payload.correct_answer)
+            param_idx += 1
+        
+        if payload.explanation is not None:
+            updates.append(f"explanation = ${param_idx}")
+            params.append(payload.explanation)
+            param_idx += 1
+        
+        if not updates:
+            # Nothing to update, just return current
+            return await self.get_question(owner_id=owner_id, question_id=question_id)
+        
+        query = f"""
+            UPDATE public.questions
+            SET {", ".join(updates)}
+            WHERE question_id = $1 AND owner_id = $2
+            RETURNING question_id, set_id, owner_id, question_text,
+                      options, correct_answer, explanation, source_file, created_at
+        """
+        
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(query, question_id, owner_id, *params)
+        
+        if row is None:
+            return None
+        
+        return QuestionOut(
+            question_id=row["question_id"],
+            set_id=row["set_id"],
+            owner_id=row["owner_id"],
+            question_text=row["question_text"],
+            options=row["options"] if isinstance(row["options"], list) else json.loads(row["options"]),
+            correct_answer=row["correct_answer"],
+            explanation=row["explanation"],
+            source_file=row["source_file"],
+            created_at=row["created_at"],
+        )
+
+    async def delete_question(self, *, owner_id: UUID, question_id: UUID) -> bool:
+        """Delete a question permanently."""
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                DELETE FROM public.questions
+                WHERE question_id = $1 AND owner_id = $2
+                """,
+                question_id,
+                owner_id,
+            )
+        return result == "DELETE 1"
 
 
 __all__ = ["QuestionService"]

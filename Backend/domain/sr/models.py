@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from domain.cards.models import CardContent
+from domain.flashcards.models import CardContent
 
 
 # =============================================================================

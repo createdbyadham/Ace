@@ -8,10 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from api.auth import CurrentUser, get_current_user
 from db.pool import get_pool
-from domain.cards.models import CardCreate, CardOut
-from domain.cards.service import CardService
-from domain.decks.models import DeckCreate, DeckOut
-from domain.decks.service import DeckService
+from domain.flashcards.models import CardCreate, CardOut, DeckCreate, DeckOut
+from domain.flashcards.service import CardService, DeckService
 from domain.sr.models import (
     DueCardOut, 
     StudySessionOut,

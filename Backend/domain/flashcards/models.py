@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
+# Card models
 class CardContent(BaseModel):
     front: str
     back: Optional[str] = None
@@ -27,5 +28,17 @@ class CardOut(BaseModel):
     created_at: datetime
 
 
-__all__ = ["CardContent", "CardCreate", "CardOut"]
+# Deck models
+class DeckCreate(BaseModel):
+    title: str
+
+
+class DeckOut(BaseModel):
+    deck_id: UUID
+    owner_id: UUID
+    title: str
+    created_at: datetime
+
+
+__all__ = ["CardContent", "CardCreate", "CardOut", "DeckCreate", "DeckOut"]
 
