@@ -70,3 +70,4 @@ count.txt
 chroma_data/
 *.db
 *.bin
+user_files/
