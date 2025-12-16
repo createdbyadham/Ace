@@ -30,6 +30,9 @@ class Settings:
     # Embedding model (sentence-transformers)
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
     
+    # File storage settings
+    file_storage_dir: str = os.getenv("FILE_STORAGE_DIR", "./user_files")
+    
     def __post_init__(self):
         if not all([self.db_user, self.db_password, self.db_host]):
             raise ValueError(

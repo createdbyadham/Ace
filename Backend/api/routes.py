@@ -239,9 +239,8 @@ async def get_deck_upcoming(
     return await service.get_upcoming(user_id=user.id, deck_id=deck_id, days=days)
 
 
-@router.post("/decks/{deck_id}/snooze", response_model=SnoozeOut)
+@router.post("/snooze", response_model=SnoozeOut)
 async def snooze_card(
-    deck_id: UUID,
     payload: SnoozeIn,
     user: CurrentUser = Depends(get_current_user),
     service: ReviewService = Depends(get_review_service),

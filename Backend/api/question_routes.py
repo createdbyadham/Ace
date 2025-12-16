@@ -23,7 +23,7 @@ from typing import List
 from uuid import UUID
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from api.auth import CurrentUser, get_current_user
@@ -43,7 +43,7 @@ from domain.questions.models import (
 )
 from domain.questions.service import QuestionService
 
-router = APIRouter (prefix="/questions", tags=["questions"])
+router = APIRouter(tags=["questions"])
 
 
 def get_question_service(pool: asyncpg.Pool = Depends(get_pool)) -> QuestionService:
@@ -250,7 +250,7 @@ class RevisionRequest(BaseModel):
 @router.post("/question-sets/{set_id}/quiz/start", response_model=QuizStart)
 async def start_quiz(
     set_id: UUID,
-    payload: QuizStartRequest = QuizStartRequest(),
+    payload: QuizStartRequest,
     user: CurrentUser = Depends(get_current_user),
     service: QuestionService = Depends(get_question_service),
 ):
@@ -280,8 +280,8 @@ async def start_quiz(
 @router.post("/question-sets/{set_id}/quiz/submit", response_model=QuizResult)
 async def submit_quiz(
     set_id: UUID,
-    quiz_session_id: UUID,
-    submission: QuizSubmission,
+    quiz_session_id: UUID = Body(...),
+    submission: QuizSubmission = Body(...),
     user: CurrentUser = Depends(get_current_user),
     service: QuestionService = Depends(get_question_service),
 ):

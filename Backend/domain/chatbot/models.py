@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import List, Literal, Optional
-from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
@@ -26,11 +26,4 @@ class ChatResponse(BaseModel):
     session_id: str
     sources: List[str] = Field(default_factory=list, description="Source documents used for context")
 
-
-class UploadResponse(BaseModel):
-    """Response from PDF upload endpoint."""
-    message: str
-    filename: str
-    chunks_created: int
-    document_id: str
 

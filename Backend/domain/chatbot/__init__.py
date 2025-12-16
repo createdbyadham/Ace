@@ -1,6 +1,6 @@
 from .service import ChatbotService
 from .vectorstore import get_vectorstore
-from .models import ChatMessage, ChatRequest, ChatResponse, UploadResponse
+from .models import ChatMessage, ChatRequest, ChatResponse
 from .memory import MemoryService, MemoryManager, memory_manager
 
 __all__ = [
@@ -9,7 +9,6 @@ __all__ = [
     "ChatMessage",
     "ChatRequest",
     "ChatResponse",
-    "UploadResponse",
     "MemoryService",
     "MemoryManager",
     "memory_manager",
