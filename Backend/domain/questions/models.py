@@ -96,6 +96,72 @@ class QuestionSetWithQuestions(BaseModel):
     questions: List[QuestionOut] = Field(default_factory=list)
 
 
+# =============================================================================
+# Quiz Models
+# =============================================================================
+
+class QuizQuestion(BaseModel):
+    """Question for quiz display - no correct answer exposed."""
+    question_id: UUID
+    question_text: str
+    options: List[str]
+
+
+class QuizStart(BaseModel):
+    """Response when starting a quiz."""
+    quiz_session_id: UUID
+    set_id: UUID
+    title: str
+    questions: List[QuizQuestion]
+    time_limit_seconds: Optional[int] = None  # None = no time limit
+
+
+class QuestionAnswer(BaseModel):
+    """Single question answer submission."""
+    question_id: UUID
+    selected_answer: int = Field(..., ge=0, le=3, description="Index of selected option (0-3)")
+
+
+class QuizSubmission(BaseModel):
+    """User's quiz submission."""
+    answers: List[QuestionAnswer]
+    time_taken_seconds: Optional[int] = None
+
+
+class QuestionResult(BaseModel):
+    """Result for a single question."""
+    question_id: UUID
+    question_text: str
+    options: List[str]
+    correct_answer: int
+    user_answer: int = Field(..., ge=-1, le=3, description="User's answer (0-3) or -1 if unanswered")
+    is_correct: bool
+    explanation: Optional[str] = None
+
+
+class QuizResult(BaseModel):
+    """Full quiz results."""
+    quiz_session_id: UUID
+    set_id: UUID
+    title: str
+    total_questions: int
+    correct_count: int
+    wrong_count: int
+    percentage: float
+    time_taken_seconds: Optional[int] = None
+    results: List[QuestionResult]
+    wrong_question_ids: List[UUID]  # For revision mode
+
+
+class RevisionStart(BaseModel):
+    """Start revision mode with only wrong questions."""
+    revision_session_id: UUID
+    set_id: UUID
+    title: str
+    original_quiz_session_id: UUID
+    questions: List[QuizQuestion]
+
+
 __all__ = [
     "QuestionCreate",
     "QuestionUpdate",
@@ -104,4 +170,11 @@ __all__ = [
     "QuestionSetUpdate",
     "QuestionSetOut",
     "QuestionSetWithQuestions",
+    "QuizQuestion",
+    "QuizStart",
+    "QuestionAnswer",
+    "QuizSubmission",
+    "QuestionResult",
+    "QuizResult",
+    "RevisionStart",
 ]

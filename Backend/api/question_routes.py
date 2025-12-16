@@ -11,6 +11,11 @@ Endpoints:
 - GET /questions/{question_id} - Get a question
 - PATCH /questions/{question_id} - Update a question
 - DELETE /questions/{question_id} - Delete a question
+
+Quiz Endpoints:
+- POST /question-sets/{set_id}/quiz/start - Start a quiz
+- POST /question-sets/{set_id}/quiz/submit - Submit quiz answers and get results
+- POST /question-sets/{set_id}/quiz/revision - Start revision with wrong answers only
 """
 from __future__ import annotations
 
@@ -19,6 +24,7 @@ from uuid import UUID
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 
 from api.auth import CurrentUser, get_current_user
 from db.pool import get_pool
@@ -30,6 +36,10 @@ from domain.questions.models import (
     QuestionSetUpdate,
     QuestionSetOut,
     QuestionSetWithQuestions,
+    QuizStart,
+    QuizSubmission,
+    QuizResult,
+    RevisionStart,
 )
 from domain.questions.service import QuestionService
 
@@ -218,6 +228,134 @@ async def delete_question(
             detail="Question not found",
         )
     return {"message": "Question deleted", "question_id": str(question_id)}
+
+
+# =============================================================================
+# Quiz Endpoints
+# =============================================================================
+
+class QuizStartRequest(BaseModel):
+    """Request body for starting a quiz."""
+    time_limit_seconds: int | None = None
+    shuffle: bool = True
+
+
+class RevisionRequest(BaseModel):
+    """Request body for starting a revision session."""
+    original_quiz_session_id: UUID
+    wrong_question_ids: List[UUID]
+    shuffle: bool = True
+
+
+@router.post("/question-sets/{set_id}/quiz/start", response_model=QuizStart)
+async def start_quiz(
+    set_id: UUID,
+    payload: QuizStartRequest = QuizStartRequest(),
+    user: CurrentUser = Depends(get_current_user),
+    service: QuestionService = Depends(get_question_service),
+):
+    """
+    Start a quiz session for a question set.
+    
+    Returns questions without correct answers.
+    The frontend should display these with a timer and collect user answers.
+    
+    - `time_limit_seconds`: Optional time limit for the quiz (informational for frontend)
+    - `shuffle`: Whether to shuffle the question order (default: True)
+    """
+    result = await service.start_quiz(
+        owner_id=user.id,
+        set_id=set_id,
+        time_limit_seconds=payload.time_limit_seconds,
+        shuffle=payload.shuffle,
+    )
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question set not found or has no questions",
+        )
+    return result
+
+
+@router.post("/question-sets/{set_id}/quiz/submit", response_model=QuizResult)
+async def submit_quiz(
+    set_id: UUID,
+    quiz_session_id: UUID,
+    submission: QuizSubmission,
+    user: CurrentUser = Depends(get_current_user),
+    service: QuestionService = Depends(get_question_service),
+):
+    """
+    Submit quiz answers and get detailed results.
+    
+    Returns:
+    - Each question with the correct answer, user's answer, and explanation
+    - Total correct/wrong counts
+    - Percentage score
+    - List of wrong question IDs for revision mode
+    
+    The `wrong_question_ids` in the response can be used to start a revision session.
+    
+    Errors:
+    - 400: Duplicate answers or invalid question IDs
+    - 404: Question set not found or empty
+    """
+    try:
+        result = await service.submit_quiz(
+            owner_id=user.id,
+            set_id=set_id,
+            quiz_session_id=quiz_session_id,
+            submission=submission,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question set not found or has no questions",
+        )
+    return result
+
+
+@router.post("/question-sets/{set_id}/quiz/revision", response_model=RevisionStart)
+async def start_revision(
+    set_id: UUID,
+    payload: RevisionRequest,
+    user: CurrentUser = Depends(get_current_user),
+    service: QuestionService = Depends(get_question_service),
+):
+    """
+    Start a revision session with only the questions the user got wrong.
+    
+    Use the `wrong_question_ids` from the quiz result to start a revision.
+    This allows users to practice only the questions they missed.
+    
+    The revision works just like a regular quiz - call `/quiz/submit` with
+    the `revision_session_id` as the `quiz_session_id` to grade the revision.
+    """
+    if not payload.wrong_question_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No wrong question IDs provided",
+        )
+    
+    result = await service.start_revision(
+        owner_id=user.id,
+        set_id=set_id,
+        original_quiz_session_id=payload.original_quiz_session_id,
+        wrong_question_ids=payload.wrong_question_ids,
+        shuffle=payload.shuffle,
+    )
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question set not found or no valid questions",
+        )
+    return result
 
 
 __all__ = ["router"]

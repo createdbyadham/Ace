@@ -17,6 +17,12 @@ from .models import (
     QuestionSetUpdate,
     QuestionSetOut,
     QuestionSetWithQuestions,
+    QuizQuestion,
+    QuizStart,
+    QuizSubmission,
+    QuestionResult,
+    QuizResult,
+    RevisionStart,
 )
 
 
@@ -393,6 +399,286 @@ class QuestionService:
                 owner_id,
             )
         return result == "DELETE 1"
+
+    # =========================================================================
+    # Quiz Methods
+    # =========================================================================
+
+    async def start_quiz(
+        self,
+        *,
+        owner_id: UUID,
+        set_id: UUID,
+        time_limit_seconds: int | None = None,
+        shuffle: bool = True,
+    ) -> QuizStart | None:
+        """
+        Start a quiz session for a question set.
+        Returns questions without correct answers.
+        """
+        import random
+        import uuid
+        
+        async with self._pool.acquire() as conn:
+            # Get question set info
+            set_row = await conn.fetchrow(
+                """
+                SELECT set_id, title
+                FROM public.question_sets
+                WHERE set_id = $1 AND owner_id = $2 AND deleted_at IS NULL
+                """,
+                set_id,
+                owner_id,
+            )
+            if set_row is None:
+                return None
+
+            # Get all questions
+            question_rows = await conn.fetch(
+                """
+                SELECT question_id, question_text, options
+                FROM public.questions
+                WHERE set_id = $1
+                ORDER BY created_at
+                """,
+                set_id,
+            )
+
+        if not question_rows:
+            return None
+
+        questions = [
+            QuizQuestion(
+                question_id=row["question_id"],
+                question_text=row["question_text"],
+                options=row["options"] if isinstance(row["options"], list) else json.loads(row["options"]),
+            )
+            for row in question_rows
+        ]
+
+        if shuffle:
+            random.shuffle(questions)
+
+        return QuizStart(
+            quiz_session_id=uuid.uuid4(),  # Generate a unique session ID
+            set_id=set_row["set_id"],
+            title=set_row["title"],
+            questions=questions,
+            time_limit_seconds=time_limit_seconds,
+        )
+
+    async def submit_quiz(
+        self,
+        *,
+        owner_id: UUID,
+        set_id: UUID,
+        quiz_session_id: UUID,
+        submission: QuizSubmission,
+    ) -> QuizResult | None:
+        """
+        Grade a quiz submission and return detailed results.
+        Unanswered questions are marked as wrong with user_answer = -1.
+        
+        Raises:
+            ValueError: If duplicate answers or invalid question IDs are submitted.
+        """
+        # Validate: no duplicate answers
+        seen_question_ids: set[UUID] = set()
+        for answer in submission.answers:
+            if answer.question_id in seen_question_ids:
+                raise ValueError(f"Duplicate answer for question {answer.question_id}")
+            seen_question_ids.add(answer.question_id)
+
+        async with self._pool.acquire() as conn:
+            # Get question set info
+            set_row = await conn.fetchrow(
+                """
+                SELECT set_id, title
+                FROM public.question_sets
+                WHERE set_id = $1 AND owner_id = $2 AND deleted_at IS NULL
+                """,
+                set_id,
+                owner_id,
+            )
+            if set_row is None:
+                return None
+
+            # Get ALL questions from the set (not just answered ones)
+            question_rows = await conn.fetch(
+                """
+                SELECT question_id, question_text, options, correct_answer, explanation
+                FROM public.questions
+                WHERE set_id = $1
+                ORDER BY created_at
+                """,
+                set_id,
+            )
+
+        if not question_rows:
+            return None
+
+        # Build set of valid question IDs for this set
+        valid_question_ids = {row["question_id"] for row in question_rows}
+
+        # Validate: all submitted answers are for questions in this set
+        invalid_ids = seen_question_ids - valid_question_ids
+        if invalid_ids:
+            raise ValueError(f"Invalid question IDs not in this set: {[str(id) for id in invalid_ids]}")
+
+        # Build lookup for user answers: question_id -> selected_answer
+        user_answers_map = {
+            answer.question_id: answer.selected_answer
+            for answer in submission.answers
+        }
+
+        # Grade ALL questions
+        results: list[QuestionResult] = []
+        correct_count = 0
+        wrong_question_ids: list[UUID] = []
+
+        for row in question_rows:
+            question_id = row["question_id"]
+            options = row["options"] if isinstance(row["options"], list) else json.loads(row["options"])
+            correct_answer = row["correct_answer"]
+            
+            # Check if user answered this question
+            user_answer = user_answers_map.get(question_id, -1)  # -1 = unanswered
+            is_correct = user_answer == correct_answer
+
+            if is_correct:
+                correct_count += 1
+            else:
+                wrong_question_ids.append(question_id)
+
+            results.append(
+                QuestionResult(
+                    question_id=question_id,
+                    question_text=row["question_text"],
+                    options=options,
+                    correct_answer=correct_answer,
+                    user_answer=user_answer,
+                    is_correct=is_correct,
+                    explanation=row["explanation"],
+                )
+            )
+
+        total = len(results)
+        wrong_count = total - correct_count
+        percentage = (correct_count / total * 100) if total > 0 else 0.0
+
+        return QuizResult(
+            quiz_session_id=quiz_session_id,
+            set_id=set_row["set_id"],
+            title=set_row["title"],
+            total_questions=total,
+            correct_count=correct_count,
+            wrong_count=wrong_count,
+            percentage=round(percentage, 2),
+            time_taken_seconds=submission.time_taken_seconds,
+            results=results,
+            wrong_question_ids=wrong_question_ids,
+        )
+
+    async def start_revision(
+        self,
+        *,
+        owner_id: UUID,
+        set_id: UUID,
+        original_quiz_session_id: UUID,
+        wrong_question_ids: list[UUID],
+        shuffle: bool = True,
+    ) -> RevisionStart | None:
+        """
+        Start a revision session with only the questions the user got wrong.
+        """
+        import random
+        import uuid
+
+        if not wrong_question_ids:
+            return None
+
+        async with self._pool.acquire() as conn:
+            # Get question set info
+            set_row = await conn.fetchrow(
+                """
+                SELECT set_id, title
+                FROM public.question_sets
+                WHERE set_id = $1 AND owner_id = $2 AND deleted_at IS NULL
+                """,
+                set_id,
+                owner_id,
+            )
+            if set_row is None:
+                return None
+
+            # Get only the wrong questions
+            question_rows = await conn.fetch(
+                """
+                SELECT question_id, question_text, options
+                FROM public.questions
+                WHERE set_id = $1 AND question_id = ANY($2)
+                """,
+                set_id,
+                wrong_question_ids,
+            )
+
+        if not question_rows:
+            return None
+
+        questions = [
+            QuizQuestion(
+                question_id=row["question_id"],
+                question_text=row["question_text"],
+                options=row["options"] if isinstance(row["options"], list) else json.loads(row["options"]),
+            )
+            for row in question_rows
+        ]
+
+        if shuffle:
+            random.shuffle(questions)
+
+        return RevisionStart(
+            revision_session_id=uuid.uuid4(),
+            set_id=set_row["set_id"],
+            title=set_row["title"],
+            original_quiz_session_id=original_quiz_session_id,
+            questions=questions,
+        )
+
+    async def get_questions_by_ids(
+        self,
+        *,
+        owner_id: UUID,
+        set_id: UUID,
+        question_ids: list[UUID],
+    ) -> list[QuestionOut]:
+        """Get specific questions by their IDs."""
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT question_id, set_id, owner_id, question_text,
+                       options, correct_answer, explanation, source_file, created_at
+                FROM public.questions
+                WHERE set_id = $1 AND owner_id = $2 AND question_id = ANY($3)
+                """,
+                set_id,
+                owner_id,
+                question_ids,
+            )
+        return [
+            QuestionOut(
+                question_id=row["question_id"],
+                set_id=row["set_id"],
+                owner_id=row["owner_id"],
+                question_text=row["question_text"],
+                options=row["options"] if isinstance(row["options"], list) else json.loads(row["options"]),
+                correct_answer=row["correct_answer"],
+                explanation=row["explanation"],
+                source_file=row["source_file"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
 
 
 __all__ = ["QuestionService"]
