@@ -33,7 +33,7 @@ from domain.flashcards.models import (
 )
 from domain.flashcards.service import CardService, DeckService
 
-router = APIRouter()
+router = APIRouter (prefix="/flashcards", tags=["flashcards"])
 
 
 def get_deck_service(pool: asyncpg.Pool = Depends(get_pool)) -> DeckService:

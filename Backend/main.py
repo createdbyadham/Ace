@@ -25,16 +25,17 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="SR Service (FastAPI)",
+        title="Ankor Backend (FastAPI)",
         lifespan=lifespan
     )
 
-    application.include_router(router)
     application.include_router(flashcard_router)
+    application.include_router(question_router)
+    application.include_router(router)
     application.include_router(rls_test_router)
     application.include_router(chatbot_router)
     application.include_router(agent_router)
-    application.include_router(question_router)
+    
 
     return application
 

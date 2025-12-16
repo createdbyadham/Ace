@@ -33,7 +33,7 @@ from domain.questions.models import (
 )
 from domain.questions.service import QuestionService
 
-router = APIRouter(tags=["questions"])
+router = APIRouter (prefix="/questions", tags=["questions"])
 
 
 def get_question_service(pool: asyncpg.Pool = Depends(get_pool)) -> QuestionService:

@@ -1,4 +1,4 @@
-"""SR Service package initialisation."""
+"""Ankor package initialisation."""
 
 from .main import create_app
 
