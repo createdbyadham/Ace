@@ -10,18 +10,23 @@ from core.config import settings
 
 
 async def _setup_json_codec(conn: asyncpg.Connection) -> None:
-    """Configure asyncpg to auto-encode/decode JSON and JSONB."""
+    """Configure asyncpg to auto-encode/decode JSON and JSONB.
+    
+    Using format='text' for PgBouncer compatibility (Supabase).
+    """
     await conn.set_type_codec(
         'jsonb',
         encoder=json.dumps,
         decoder=json.loads,
-        schema='pg_catalog'
+        schema='pg_catalog',
+        format='text',
     )
     await conn.set_type_codec(
         'json',
         encoder=json.dumps,
         decoder=json.loads,
-        schema='pg_catalog'
+        schema='pg_catalog',
+        format='text',
     )
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import List, Optional
+import json
+from typing import Any, List, Optional
 from uuid import UUID
 
 import asyncpg
@@ -15,6 +16,17 @@ from domain.flashcards.models import (
 )
 
 
+def _parse_tags(tags: Any) -> List[str]:
+    """Parse tags from database (could be string, list, or None)."""
+    if tags is None:
+        return []
+    if isinstance(tags, list):
+        return tags
+    if isinstance(tags, str):
+        return json.loads(tags)
+    return []
+
+
 class DeckService:
     def __init__(self, pool: asyncpg.Pool):
         self._pool = pool
@@ -23,27 +35,34 @@ class DeckService:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                INSERT INTO public.decks (owner_id, title)
-                VALUES ($1, $2)
-                RETURNING deck_id, owner_id, title, created_at
+                INSERT INTO public.decks (owner_id, title, description, tags, language)
+                VALUES ($1, $2, $3, $4::jsonb, $5)
+                RETURNING deck_id, owner_id, title, description, tags, language, created_at, updated_at
                 """,
                 owner_id,
                 payload.title,
+                payload.description,
+                json.dumps(payload.tags),
+                payload.language,
             )
         return DeckOut(
             deck_id=row["deck_id"],
             owner_id=row["owner_id"],
             title=row["title"],
+            description=row["description"],
+            tags=_parse_tags(row["tags"]),
+            language=row["language"],
             created_at=row["created_at"],
+            updated_at=row["updated_at"],
         )
 
     async def list_decks(self, *, owner_id: UUID) -> List[DeckOut]:
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT deck_id, owner_id, title, created_at
+                SELECT deck_id, owner_id, title, description, tags, language, created_at, updated_at
                 FROM public.decks
-                WHERE owner_id = $1
+                WHERE owner_id = $1 AND deleted_at IS NULL
                 ORDER BY created_at DESC
                 """,
                 owner_id,
@@ -53,7 +72,11 @@ class DeckService:
                 deck_id=row["deck_id"],
                 owner_id=row["owner_id"],
                 title=row["title"],
+                description=row["description"],
+                tags=_parse_tags(row["tags"]),
+                language=row["language"],
                 created_at=row["created_at"],
+                updated_at=row["updated_at"],
             )
             for row in rows
         ]
@@ -62,9 +85,9 @@ class DeckService:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT deck_id, owner_id, title, created_at
+                SELECT deck_id, owner_id, title, description, tags, language, created_at, updated_at
                 FROM public.decks
-                WHERE owner_id = $1 AND deck_id = $2
+                WHERE owner_id = $1 AND deck_id = $2 AND deleted_at IS NULL
                 """,
                 owner_id,
                 deck_id,
@@ -75,47 +98,83 @@ class DeckService:
             deck_id=row["deck_id"],
             owner_id=row["owner_id"],
             title=row["title"],
+            description=row["description"],
+            tags=_parse_tags(row["tags"]),
+            language=row["language"],
             created_at=row["created_at"],
+            updated_at=row["updated_at"],
         )
 
     async def update_deck(
         self, *, owner_id: UUID, deck_id: UUID, payload: DeckUpdate
     ) -> Optional[DeckOut]:
-        if payload.title is None:
+        # Build dynamic update query
+        # Use model_fields_set to check which fields were explicitly provided
+        # This allows distinguishing between "not provided" and "set to null"
+        provided_fields = payload.model_fields_set
+        updates = []
+        params = [owner_id, deck_id]
+        param_idx = 3
+
+        if "title" in provided_fields and payload.title is not None:
+            updates.append(f"title = ${param_idx}")
+            params.append(payload.title)
+            param_idx += 1
+
+        if "description" in provided_fields:
+            updates.append(f"description = ${param_idx}")
+            params.append(payload.description)  # Can be None to clear
+            param_idx += 1
+
+        if "tags" in provided_fields:
+            updates.append(f"tags = ${param_idx}::jsonb")
+            params.append(json.dumps(payload.tags if payload.tags else []))
+            param_idx += 1
+
+        if "language" in provided_fields:
+            updates.append(f"language = ${param_idx}")
+            params.append(payload.language)  # Can be None to clear
+            param_idx += 1
+
+        if not updates:
             return await self.get_deck(owner_id=owner_id, deck_id=deck_id)
 
+        query = f"""
+            UPDATE public.decks
+            SET {', '.join(updates)}
+            WHERE owner_id = $1 AND deck_id = $2 AND deleted_at IS NULL
+            RETURNING deck_id, owner_id, title, description, tags, language, created_at, updated_at
+        """
+
         async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(
-                """
-                UPDATE public.decks
-                SET title = $3
-                WHERE owner_id = $1 AND deck_id = $2
-                RETURNING deck_id, owner_id, title, created_at
-                """,
-                owner_id,
-                deck_id,
-                payload.title,
-            )
+            row = await conn.fetchrow(query, *params)
+
         if row is None:
             return None
         return DeckOut(
             deck_id=row["deck_id"],
             owner_id=row["owner_id"],
             title=row["title"],
+            description=row["description"],
+            tags=_parse_tags(row["tags"]),
+            language=row["language"],
             created_at=row["created_at"],
+            updated_at=row["updated_at"],
         )
 
     async def delete_deck(self, *, owner_id: UUID, deck_id: UUID) -> bool:
+        """Soft delete a deck by setting deleted_at timestamp."""
         async with self._pool.acquire() as conn:
             result = await conn.execute(
                 """
-                DELETE FROM public.decks
-                WHERE owner_id = $1 AND deck_id = $2
+                UPDATE public.decks
+                SET deleted_at = now()
+                WHERE owner_id = $1 AND deck_id = $2 AND deleted_at IS NULL
                 """,
                 owner_id,
                 deck_id,
             )
-        return result == "DELETE 1"
+        return result == "UPDATE 1"
 
 
 class CardService:
@@ -128,7 +187,7 @@ class CardService:
         async with self._pool.acquire() as conn:
             if payload.deck_id is not None:
                 deck_owner = await conn.fetchval(
-                    "SELECT owner_id FROM public.decks WHERE deck_id = $1",
+                    "SELECT owner_id FROM public.decks WHERE deck_id = $1 AND deleted_at IS NULL",
                     payload.deck_id,
                 )
                 if deck_owner is None:
@@ -234,7 +293,7 @@ class CardService:
             new_deck_id = payload.deck_id if payload.deck_id is not None else existing["deck_id"]
             if payload.deck_id is not None and payload.deck_id != existing["deck_id"]:
                 deck_owner = await conn.fetchval(
-                    "SELECT owner_id FROM public.decks WHERE deck_id = $1",
+                    "SELECT owner_id FROM public.decks WHERE deck_id = $1 AND deleted_at IS NULL",
                     payload.deck_id,
                 )
                 if deck_owner is None:
@@ -283,4 +342,3 @@ class CardService:
 
 
 __all__ = ["DeckService", "CardService"]
-

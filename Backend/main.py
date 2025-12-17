@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import router
 from api.flashcard_routes import router as flashcard_router
@@ -28,6 +29,15 @@ def create_app() -> FastAPI:
     application = FastAPI(
         title="Ankor Backend (FastAPI)",
         lifespan=lifespan
+    )
+
+    # Enable CORS
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     application.include_router(flashcard_router)

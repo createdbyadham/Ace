@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # Card models
@@ -37,17 +37,27 @@ class CardUpdate(BaseModel):
 # Deck models
 class DeckCreate(BaseModel):
     title: str
+    description: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    language: Optional[str] = None
 
 
 class DeckUpdate(BaseModel):
     title: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[List[str]] = None
+    language: Optional[str] = None
 
 
 class DeckOut(BaseModel):
     deck_id: UUID
     owner_id: UUID
     title: str
+    description: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    language: Optional[str] = None
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
 
 __all__ = [
@@ -59,4 +69,3 @@ __all__ = [
     "DeckUpdate",
     "DeckOut",
 ]
-

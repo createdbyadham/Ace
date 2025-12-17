@@ -264,7 +264,13 @@ class ReviewService:
         user_id: UUID,
         deck_id: UUID,
     ) -> DeckStatsOut:
-        """Get statistics for a deck."""
+        """Get statistics for a deck.
+        
+        Categories are mutually exclusive:
+        - new: No state record (never reviewed)
+        - learning: Has state with interval_days <= 21
+        - mastered: Has state with interval_days > 21
+        """
         async with self._pool.acquire() as conn:
             stats = await conn.fetchrow(
                 """
@@ -276,9 +282,9 @@ class ReviewService:
                     COUNT(*) FILTER (
                         WHERE DATE(s.next_review_at) = CURRENT_DATE OR s.card_id IS NULL
                     ) AS due_today,
-                    COUNT(*) FILTER (WHERE s.interval_days > 21) AS mastered,
-                    COUNT(*) FILTER (WHERE s.interval_days > 0 AND s.interval_days <= 21) AS learning,
-                    COUNT(*) FILTER (WHERE s.repetition = 0 OR s.card_id IS NULL) AS new
+                    COUNT(*) FILTER (WHERE s.card_id IS NOT NULL AND s.interval_days > 21) AS mastered,
+                    COUNT(*) FILTER (WHERE s.card_id IS NOT NULL AND s.interval_days <= 21) AS learning,
+                    COUNT(*) FILTER (WHERE s.card_id IS NULL) AS new
                 FROM public.cards c
                 LEFT JOIN public.states s ON s.card_id = c.card_id AND s.user_id = $1
                 WHERE c.deck_id = $2 AND c.deleted_at IS NULL
