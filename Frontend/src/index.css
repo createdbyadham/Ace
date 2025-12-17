@@ -48,7 +48,7 @@
   }
   
   .nav-link::after {
-    @apply content-[''] absolute left-0 -bottom-1 w-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300;
+    @apply content-[''] absolute left-0 -bottom-1 w-0 h-0.5 bg-indigo-500 transition-all duration-300;
   }
   
   .nav-link:hover::after {

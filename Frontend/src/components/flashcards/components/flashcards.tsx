@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
@@ -55,11 +55,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuth } from '@/context/AuthContext';
 
-export const Route = createFileRoute('/flashcards')({
-  component: FlashcardsPage,
-});
-
-function FlashcardsPage() {
+export default function FlashcardsPage() {
   const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
 

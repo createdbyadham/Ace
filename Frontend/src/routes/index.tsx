@@ -91,7 +91,7 @@ function LandingPage() {
                 Master anything
               </span>
               <br />
-              <span className="bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-indigo-200 to-purple-800 bg-clip-text text-transparent">
                 with Cardify
               </span>
             </motion.h1>
@@ -114,8 +114,12 @@ function LandingPage() {
             >
               {isAuthenticated ? (
                 <Link to="/quiz">
-                  <Button size="lg" className="group bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-8 py-6 text-lg rounded-xl shadow-lg shadow-indigo-500/25">
-                    Go to Dashboard
+                  <Button size="lg" className="group bg-black hover:bg-black/80 text-white
+                  px-8 py-6 text-lg rounded-xl
+                  outline outline-2 outline-white/10
+                  shadow-[0_0_20px_4px_rgba(99,102,241,0.25)]
+                  transition-all duration-300">
+                    Try it out now
                     <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </Link>
@@ -150,7 +154,7 @@ function LandingPage() {
             >
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
                 Everything you need to{' '}
-                <span className="bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-indigo-100 to-purple-800 bg-clip-text text-transparent">
                   excel
                 </span>
               </h2>
@@ -172,7 +176,7 @@ function LandingPage() {
                 >
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10  flex items-center justify-center mb-4">
                       <feature.icon className="w-6 h-6 text-indigo-400" />
                     </div>
                     <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>

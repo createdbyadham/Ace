@@ -10,14 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as QuizRouteImport } from './routes/quiz'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as FlashcardsRouteImport } from './components/flashcards/components/flashcards'
-import { Route as QuizRouteImport } from './components/quiz/components/quiz'
+import { Route as FlashcardsRouteImport } from './routes/flashcards'
+import { Route as FilesRouteImport } from './routes/files'
 import { Route as IndexRouteImport } from './routes/index'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuizRoute = QuizRouteImport.update({
+  id: '/quiz',
+  path: '/quiz',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -30,9 +36,9 @@ const FlashcardsRoute = FlashcardsRouteImport.update({
   path: '/flashcards',
   getParentRoute: () => rootRouteImport,
 } as any)
-const QuizRoute = QuizRouteImport.update({
-  id: '/quiz',
-  path: '/quiz',
+const FilesRoute = FilesRouteImport.update({
+  id: '/files',
+  path: '/files',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -43,37 +49,50 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/files': typeof FilesRoute
   '/flashcards': typeof FlashcardsRoute
   '/login': typeof LoginRoute
+  '/quiz': typeof QuizRoute
   '/register': typeof RegisterRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/files': typeof FilesRoute
   '/flashcards': typeof FlashcardsRoute
-  '/quiz': typeof QuizRoute
   '/login': typeof LoginRoute
+  '/quiz': typeof QuizRoute
   '/register': typeof RegisterRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/files': typeof FilesRoute
   '/flashcards': typeof FlashcardsRoute
-  '/quiz': typeof QuizRoute
   '/login': typeof LoginRoute
+  '/quiz': typeof QuizRoute
   '/register': typeof RegisterRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/flashcards' | '/quiz' | '/login' | '/register'
+  fullPaths: '/' | '/files' | '/flashcards' | '/login' | '/quiz' | '/register'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/flashcards' | '/quiz' | '/login' | '/register'
-  id: '__root__' | '/' | '/flashcards' | '/quiz' | '/login' | '/register'
+  to: '/' | '/files' | '/flashcards' | '/login' | '/quiz' | '/register'
+  id:
+    | '__root__'
+    | '/'
+    | '/files'
+    | '/flashcards'
+    | '/login'
+    | '/quiz'
+    | '/register'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FilesRoute: typeof FilesRoute
   FlashcardsRoute: typeof FlashcardsRoute
   LoginRoute: typeof LoginRoute
+  QuizRoute: typeof QuizRoute
   RegisterRoute: typeof RegisterRoute
 }
 
@@ -84,6 +103,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quiz': {
+      id: '/quiz'
+      path: '/quiz'
+      fullPath: '/quiz'
+      preLoaderRoute: typeof QuizRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -100,11 +126,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FlashcardsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/quiz': {
-      id: '/quiz'
-      path: '/quiz'
-      fullPath: '/quiz'
-      preLoaderRoute: typeof QuizRouteImport
+    '/files': {
+      id: '/files'
+      path: '/files'
+      fullPath: '/files'
+      preLoaderRoute: typeof FilesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -119,9 +145,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FilesRoute: FilesRoute,
   FlashcardsRoute: FlashcardsRoute,
-  QuizRoute: QuizRoute,
   LoginRoute: LoginRoute,
+  QuizRoute: QuizRoute,
   RegisterRoute: RegisterRoute,
 }
 export const routeTree = rootRouteImport

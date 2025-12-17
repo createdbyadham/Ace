@@ -43,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <nav className="hidden md:flex items-center gap-8">
           <Link to="/quiz" className="nav-link text-sm font-medium text-foreground/80 hover:text-foreground">Quiz</Link>
           <Link to="/flashcards" className="nav-link text-sm font-medium text-foreground/80 hover:text-foreground">Flash Cards</Link>
-          <Link to="/" className="nav-link text-sm font-medium text-foreground/80 hover:text-foreground">Lectures</Link>
+          <Link to="/files" className="nav-link text-sm font-medium text-foreground/80 hover:text-foreground">My Files</Link>
           <Link to="/" className="nav-link text-sm font-medium text-foreground/80 hover:text-foreground">Summaries</Link>
         </nav>
       </div>

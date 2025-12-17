@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
@@ -60,11 +60,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuth } from '@/context/AuthContext';
 
-export const Route = createFileRoute('/quiz')({
-  component: QuizPage,
-});
-
-function QuizPage() {
+export default function QuizPage() {
   const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
 
