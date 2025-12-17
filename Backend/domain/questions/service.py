@@ -214,23 +214,26 @@ class QuestionService:
     ) -> Optional[QuestionSetOut]:
         """Update a question set."""
         # Build dynamic update query
+        # Use model_fields_set to distinguish "not provided" from "set to null"
+        provided_fields = payload.model_fields_set
         updates = []
         params = []
         param_idx = 3  # $1 = set_id, $2 = owner_id
         
-        if payload.title is not None:
+        if "title" in provided_fields and payload.title is not None:
             updates.append(f"title = ${param_idx}")
             params.append(payload.title)
             param_idx += 1
         
-        if payload.description is not None:
+        if "description" in provided_fields:
             updates.append(f"description = ${param_idx}")
-            params.append(payload.description)
+            params.append(payload.description)  # Can be None to clear
             param_idx += 1
         
-        if payload.tags is not None:
+        if "tags" in provided_fields:
             updates.append(f"tags = ${param_idx}")
-            params.append(json.dumps(payload.tags))
+            # Can be None to clear (consistent with description)
+            params.append(json.dumps(payload.tags) if payload.tags is not None else None)
             param_idx += 1
         
         if not updates:

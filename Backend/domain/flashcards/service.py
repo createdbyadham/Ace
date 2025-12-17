@@ -128,7 +128,8 @@ class DeckService:
 
         if "tags" in provided_fields:
             updates.append(f"tags = ${param_idx}::jsonb")
-            params.append(json.dumps(payload.tags if payload.tags else []))
+            # Can be None to clear (consistent with description/language)
+            params.append(json.dumps(payload.tags) if payload.tags is not None else None)
             param_idx += 1
 
         if "language" in provided_fields:
