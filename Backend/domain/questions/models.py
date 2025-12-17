@@ -119,7 +119,7 @@ class QuizStart(BaseModel):
 class QuestionAnswer(BaseModel):
     """Single question answer submission."""
     question_id: UUID
-    selected_answer: int = Field(..., ge=0, le=3, description="Index of selected option (0-3)")
+    selected_answer: int = Field(..., ge=-1, le=3, description="Index of selected option (0-3) or -1 if unanswered")
 
 
 class QuizSubmission(BaseModel):

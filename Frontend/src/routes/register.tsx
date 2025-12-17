@@ -129,7 +129,7 @@ function RegisterPage() {
           <CardHeader className="text-center space-y-2 pb-2">
             <Link to="/" className="flex items-center justify-center gap-2 mb-4">
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                <span className="text-white font-bold text-xl">Q</span>
+                <span className="text-white font-bold text-xl">C</span>
               </div>
               <span className="text-xl font-bold">Cardify</span>
             </Link>

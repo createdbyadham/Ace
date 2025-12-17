@@ -32,6 +32,17 @@ class QuestionService:
     def __init__(self, pool: asyncpg.Pool):
         self._pool = pool
 
+    @staticmethod
+    def _parse_tags(tags_value) -> list[str]:
+        """Parse tags from database - handles both JSON string and list."""
+        if tags_value is None:
+            return []
+        if isinstance(tags_value, list):
+            return tags_value
+        if isinstance(tags_value, str):
+            return json.loads(tags_value)
+        return []
+
     async def create_question_set(
         self,
         *,
@@ -56,7 +67,7 @@ class QuestionService:
             owner_id=row["owner_id"],
             title=row["title"],
             description=row["description"],
-            tags=row["tags"] if row["tags"] else [],
+            tags=self._parse_tags(row["tags"]),
             created_at=row["created_at"],
             questions_count=0,
         )
@@ -83,7 +94,7 @@ class QuestionService:
                 owner_id=row["owner_id"],
                 title=row["title"],
                 description=row["description"],
-                tags=row["tags"] if row["tags"] else [],
+                tags=self._parse_tags(row["tags"]),
                 created_at=row["created_at"],
                 questions_count=row["questions_count"],
             )
@@ -141,7 +152,7 @@ class QuestionService:
             owner_id=set_row["owner_id"],
             title=set_row["title"],
             description=set_row["description"],
-            tags=set_row["tags"] if set_row["tags"] else [],
+            tags=self._parse_tags(set_row["tags"]),
             created_at=set_row["created_at"],
             questions=questions,
         )
@@ -219,7 +230,7 @@ class QuestionService:
         
         if payload.tags is not None:
             updates.append(f"tags = ${param_idx}")
-            params.append(payload.tags)
+            params.append(json.dumps(payload.tags))
             param_idx += 1
         
         if not updates:
@@ -244,7 +255,7 @@ class QuestionService:
             owner_id=row["owner_id"],
             title=row["title"],
             description=row["description"],
-            tags=row["tags"] if row["tags"] else [],
+            tags=self._parse_tags(row["tags"]),
             created_at=row["created_at"],
             questions_count=0,  # Not fetching count for update response
         )
@@ -273,7 +284,7 @@ class QuestionService:
             owner_id=row["owner_id"],
             title=row["title"],
             description=row["description"],
-            tags=row["tags"] if row["tags"] else [],
+            tags=self._parse_tags(row["tags"]),
             created_at=row["created_at"],
             questions_count=0,
         )
@@ -477,17 +488,22 @@ class QuestionService:
     ) -> QuizResult | None:
         """
         Grade a quiz submission and return detailed results.
-        Unanswered questions are marked as wrong with user_answer = -1.
+        Only grades questions that were submitted (supports both full quiz and revision).
         
         Raises:
             ValueError: If duplicate answers or invalid question IDs are submitted.
         """
         # Validate: no duplicate answers
+        submitted_question_ids: list[UUID] = []
         seen_question_ids: set[UUID] = set()
         for answer in submission.answers:
             if answer.question_id in seen_question_ids:
                 raise ValueError(f"Duplicate answer for question {answer.question_id}")
             seen_question_ids.add(answer.question_id)
+            submitted_question_ids.append(answer.question_id)
+
+        if not submitted_question_ids:
+            return None
 
         async with self._pool.acquire() as conn:
             # Get question set info
@@ -503,24 +519,26 @@ class QuestionService:
             if set_row is None:
                 return None
 
-            # Get ALL questions from the set (not just answered ones)
+            # Get only the SUBMITTED questions (not all questions from the set)
+            # This correctly handles both full quizzes and revisions
             question_rows = await conn.fetch(
                 """
                 SELECT question_id, question_text, options, correct_answer, explanation
                 FROM public.questions
-                WHERE set_id = $1
-                ORDER BY created_at
+                WHERE set_id = $1 AND question_id = ANY($2)
                 """,
                 set_id,
+                submitted_question_ids,
             )
 
         if not question_rows:
             return None
 
-        # Build set of valid question IDs for this set
-        valid_question_ids = {row["question_id"] for row in question_rows}
+        # Build lookup: question_id -> row data
+        question_data_map = {row["question_id"]: row for row in question_rows}
 
         # Validate: all submitted answers are for questions in this set
+        valid_question_ids = set(question_data_map.keys())
         invalid_ids = seen_question_ids - valid_question_ids
         if invalid_ids:
             raise ValueError(f"Invalid question IDs not in this set: {[str(id) for id in invalid_ids]}")
@@ -531,18 +549,16 @@ class QuestionService:
             for answer in submission.answers
         }
 
-        # Grade ALL questions
+        # Grade only SUBMITTED questions (preserves submission order)
         results: list[QuestionResult] = []
         correct_count = 0
         wrong_question_ids: list[UUID] = []
 
-        for row in question_rows:
-            question_id = row["question_id"]
+        for question_id in submitted_question_ids:
+            row = question_data_map[question_id]
             options = row["options"] if isinstance(row["options"], list) else json.loads(row["options"])
             correct_answer = row["correct_answer"]
-            
-            # Check if user answered this question
-            user_answer = user_answers_map.get(question_id, -1)  # -1 = unanswered
+            user_answer = user_answers_map[question_id]
             is_correct = user_answer == correct_answer
 
             if is_correct:

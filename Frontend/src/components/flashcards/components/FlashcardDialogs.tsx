@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
-import type { Card, CardCreate, Deck, DeckCreate } from '@/domain/flashcards/types';
+import type { Card, CardCreate, Deck, DeckCreate } from '@/components/flashcards/types';
 import {
   AlertDialog,
   AlertDialogAction,

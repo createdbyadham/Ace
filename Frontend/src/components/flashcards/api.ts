@@ -12,7 +12,7 @@ import type {
   StudyMode,
   ReviewIn,
   ReviewOut,
-} from './types';
+} from '@/components/flashcards/types';
 
 export const flashcardsApi = {
   // Deck operations

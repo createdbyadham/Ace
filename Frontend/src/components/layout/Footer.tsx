@@ -12,8 +12,8 @@ export const Footer: React.FC<FooterProps> = ({
     <footer className={`w-full py-6 px-4 border-t border-border/10 z-10 bg-background/50 backdrop-blur-sm ${className}`}>
       <div className="max-w-screen-xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-md bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">Q</span>
+          <div className="h-6 w-6 rounded-md bg-black outline outline-2 outline-white/10 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+            <span className="text-white font-bold text-sm">C</span>
           </div>
           <span className="text-sm text-foreground/60">© 2025 Cardify</span>
         </div>

@@ -32,7 +32,7 @@ import type {
   StudyCard,
   StudyMode,
   ReviewResponse,
-} from '@/domain/flashcards/types';
+} from '@/components/flashcards/types';
 import {
   useCards,
   useDecks,
@@ -42,8 +42,8 @@ import {
   useDeckStats,
   useStudySession,
   useStudyMutations,
-} from '@/application/flashcards/useFlashcards';
-import { CardDialog, DeckDialog, DeleteConfirmDialog } from '@/components/flashcards/FlashcardDialogs';
+} from '@/components/flashcards/useFlashcards';
+import { CardDialog, DeckDialog, DeleteConfirmDialog } from '@/components/flashcards/components/FlashcardDialogs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

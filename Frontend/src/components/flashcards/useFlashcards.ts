@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { flashcardsApi } from '@/domain/flashcards/api';
+import { flashcardsApi } from '@/components/flashcards/api';
 import type {
   DeckCreate,
   DeckUpdate,
@@ -9,7 +9,7 @@ import type {
   StudyMode,
   ReviewIn,
   ReviewResponse,
-} from '@/domain/flashcards/types';
+} from '@/components/flashcards/types';
 
 export const flashcardKeys = {
   all: ['flashcards'] as const,
