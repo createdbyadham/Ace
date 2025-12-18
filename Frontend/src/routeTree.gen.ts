@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SummariesRouteImport } from './routes/summaries'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as QuizRouteImport } from './routes/quiz'
 import { Route as LoginRouteImport } from './routes/login'
@@ -16,6 +17,11 @@ import { Route as FlashcardsRouteImport } from './routes/flashcards'
 import { Route as FilesRouteImport } from './routes/files'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SummariesRoute = SummariesRouteImport.update({
+  id: '/summaries',
+  path: '/summaries',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/quiz': typeof QuizRoute
   '/register': typeof RegisterRoute
+  '/summaries': typeof SummariesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/quiz': typeof QuizRoute
   '/register': typeof RegisterRoute
+  '/summaries': typeof SummariesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,12 +79,27 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/quiz': typeof QuizRoute
   '/register': typeof RegisterRoute
+  '/summaries': typeof SummariesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/files' | '/flashcards' | '/login' | '/quiz' | '/register'
+  fullPaths:
+    | '/'
+    | '/files'
+    | '/flashcards'
+    | '/login'
+    | '/quiz'
+    | '/register'
+    | '/summaries'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/files' | '/flashcards' | '/login' | '/quiz' | '/register'
+  to:
+    | '/'
+    | '/files'
+    | '/flashcards'
+    | '/login'
+    | '/quiz'
+    | '/register'
+    | '/summaries'
   id:
     | '__root__'
     | '/'
@@ -85,6 +108,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/quiz'
     | '/register'
+    | '/summaries'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -94,10 +118,18 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   QuizRoute: typeof QuizRoute
   RegisterRoute: typeof RegisterRoute
+  SummariesRoute: typeof SummariesRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/summaries': {
+      id: '/summaries'
+      path: '/summaries'
+      fullPath: '/summaries'
+      preLoaderRoute: typeof SummariesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -150,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   QuizRoute: QuizRoute,
   RegisterRoute: RegisterRoute,
+  SummariesRoute: SummariesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

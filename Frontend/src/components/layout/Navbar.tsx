@@ -44,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <Link to="/quiz" className="nav-link text-sm font-medium text-foreground/80 hover:text-foreground">Quiz</Link>
           <Link to="/flashcards" className="nav-link text-sm font-medium text-foreground/80 hover:text-foreground">Flash Cards</Link>
           <Link to="/files" className="nav-link text-sm font-medium text-foreground/80 hover:text-foreground">My Files</Link>
-          <Link to="/" className="nav-link text-sm font-medium text-foreground/80 hover:text-foreground">Summaries</Link>
+          <Link to="/summaries" className="nav-link text-sm font-medium text-foreground/80 hover:text-foreground">Summaries</Link>
         </nav>
       </div>
       <div className="flex items-center gap-4">

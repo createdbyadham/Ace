@@ -9,6 +9,7 @@ from api.chatbot_routes import router as chatbot_router
 from api.agent_routes import router as agent_router
 from api.question_routes import router as question_router
 from api.file_routes import router as file_router
+from api.summary_routes import router as summary_router
 from db.pool import close_pool, init_pool
 
 
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     application.include_router(chatbot_router)
     application.include_router(agent_router)
     application.include_router(file_router)
+    application.include_router(summary_router)
     
 
     return application

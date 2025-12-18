@@ -4,7 +4,7 @@ Models for AI agents.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -43,10 +43,46 @@ class DeckWithCardsOut(BaseModel):
     cards_count: int
 
 
+# ============================================
+# Summary Generation Models
+# ============================================
+
+class SummaryGenerationResponseOut(BaseModel):
+    """Response from summary generation."""
+    summary_id: str
+    title: str
+    content: str
+    key_points: List[str]
+    source_files: List[str]
+    word_count: int
+
+
+class SummaryOut(BaseModel):
+    """Summary output model."""
+    summary_id: str
+    owner_id: str
+    title: str
+    content: str
+    key_points: List[str]
+    source_files: List[str]
+    word_count: int
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+
+class SummaryListResponse(BaseModel):
+    """List of summaries response."""
+    summaries: List[SummaryOut]
+    total: int
+
+
 __all__ = [
     "GeneratedCard",
     "FlashcardGenerationRequest",
     "FlashcardGenerationResponse",
     "DeckWithCardsOut",
+    "SummaryGenerationResponseOut",
+    "SummaryOut",
+    "SummaryListResponse",
 ]
 

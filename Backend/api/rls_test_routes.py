@@ -167,5 +167,46 @@ async def get_current_user(authorization: str | None = Header(None)):
     
     return resp.json()
 
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+@router.post("/refresh", response_model=AuthResponse)
+async def refresh_token(payload: RefreshTokenRequest):
+    """
+    Refresh an expired access token using the refresh token.
+    
+    Returns a new access_token and refresh_token pair.
+    """
+    if not settings.supabase_url or not settings.supabase_anon_key:
+        raise HTTPException(
+            status_code=500,
+            detail="SUPABASE_URL and SUPABASE_ANON_KEY must be set"
+        )
+    
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{settings.supabase_url}/auth/v1/token?grant_type=refresh_token",
+            json={"refresh_token": payload.refresh_token},
+            headers={
+                "apikey": settings.supabase_anon_key,
+                "Content-Type": "application/json",
+            },
+        )
+    
+    if resp.status_code != 200:
+        raise HTTPException(status_code=resp.status_code, detail="Invalid or expired refresh token")
+    
+    data = resp.json()
+    
+    return AuthResponse(
+        access_token=data["access_token"],
+        refresh_token=data.get("refresh_token", payload.refresh_token),
+        user_id=data["user"]["id"],
+        email=data["user"]["email"],
+    )
+
+
 __all__ = ["router"]
 

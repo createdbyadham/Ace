@@ -4,10 +4,11 @@ API routes for AI agents.
 Endpoints:
 - POST /agents/flashcards - Generate flashcards from PDFs
 - POST /agents/mcq - Generate MCQ questions from PDFs
+- POST /agents/summary - Generate summary from PDFs
 """
 from __future__ import annotations
 
-from typing import List
+from typing import List, Literal
 
 import asyncpg
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -17,7 +18,8 @@ from api.auth import CurrentUser, get_current_user
 from db.pool import get_pool
 from domain.agents.flashcard_agent import FlashcardAgent
 from domain.agents.mcq_agent import MCQAgent
-from domain.agents.models import FlashcardGenerationResponse
+from domain.agents.summary_agent import SummaryAgent
+from domain.agents.models import FlashcardGenerationResponse, SummaryGenerationResponseOut
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -28,6 +30,10 @@ def get_flashcard_agent(pool: asyncpg.Pool = Depends(get_pool)) -> FlashcardAgen
 
 def get_mcq_agent(pool: asyncpg.Pool = Depends(get_pool)) -> MCQAgent:
     return MCQAgent(pool)
+
+
+def get_summary_agent(pool: asyncpg.Pool = Depends(get_pool)) -> SummaryAgent:
+    return SummaryAgent(pool)
 
 
 # Response model for MCQ generation (for OpenAPI docs)
@@ -247,6 +253,101 @@ async def generate_mcq_questions(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate questions: {str(exc)}",
+        ) from exc
+
+
+@router.post("/summary", response_model=SummaryGenerationResponseOut)
+async def generate_summary(
+    files: List[UploadFile] = File(..., description="PDF files to generate summary from"),
+    title: str = Form(..., min_length=1, max_length=200, description="Title for the summary"),
+    summary_length: str = Form(default="medium", description="Summary length: brief, medium, or detailed"),
+    user: CurrentUser = Depends(get_current_user),
+    agent: SummaryAgent = Depends(get_summary_agent),
+):
+    """
+    Generate a summary from uploaded PDF files using AI.
+    
+    The agent will:
+    1. Extract text from each PDF
+    2. Combine content from all PDFs
+    3. Use AI to generate a comprehensive summary
+    4. Extract key points and takeaways
+    5. Save the summary to the database
+    
+    Args:
+        files: One or more PDF files (lectures, notes, textbooks)
+        title: Title for the summary
+        summary_length: 'brief' (~200-300 words), 'medium' (~500-700 words), or 'detailed' (~1000-1500 words)
+        
+    Returns:
+        The created summary with content and key points
+    """
+    # Validate files
+    if not files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one PDF file is required",
+        )
+    
+    # Validate summary_length
+    valid_lengths = ["brief", "medium", "detailed"]
+    if summary_length not in valid_lengths:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"summary_length must be one of: {', '.join(valid_lengths)}",
+        )
+    
+    pdf_files = []
+    
+    for file in files:
+        if not file.filename:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="All files must have filenames",
+            )
+        
+        if not file.filename.lower().endswith(".pdf"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Only PDF files are supported. Got: {file.filename}",
+            )
+        
+        pdf_bytes = await file.read()
+        
+        if len(pdf_bytes) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File is empty: {file.filename}",
+            )
+        
+        pdf_files.append((pdf_bytes, file.filename))
+    
+    try:
+        result = await agent.generate_summary(
+            owner_id=user.id,
+            title=title,
+            summary_length=summary_length,
+            pdf_files=pdf_files,
+        )
+        
+        return SummaryGenerationResponseOut(
+            summary_id=str(result.summary_id),
+            title=result.title,
+            content=result.content,
+            key_points=result.key_points,
+            source_files=result.source_files,
+            word_count=result.word_count,
+        )
+    
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate summary: {str(exc)}",
         ) from exc
 
 
