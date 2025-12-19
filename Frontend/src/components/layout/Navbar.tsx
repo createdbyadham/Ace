@@ -104,7 +104,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           <>
             <Link to="/login" className="text-sm font-medium text-foreground/80 hover:text-foreground">Log in</Link>
             <Link to="/register">
-              <Button className="rounded-md bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500">
+              <Button className="
+
+              bg-black hover:bg-black/80 text-white
+                  rounded-md
+                  outline outline-2 outline-white/10
+                  shadow-[0_0_20px_4px_rgba(99,102,241,0.25)]
+                  transition-all duration-300">
                 Get started
               </Button>
             </Link>

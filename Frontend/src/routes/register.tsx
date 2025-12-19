@@ -128,7 +128,7 @@ function RegisterPage() {
         <Card className="border-white/10 bg-background/60 backdrop-blur-xl shadow-2xl shadow-purple-500/10">
           <CardHeader className="text-center space-y-2 pb-2">
             <Link to="/" className="flex items-center justify-center gap-2 mb-4">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+              <div className="h-10 w-10 rounded-xl bg-black outline outline-2 outline-white/10 flex items-center justify-center shadow-lg shadow-indigo-500/30">
                 <span className="text-white font-bold text-xl">C</span>
               </div>
               <span className="text-xl font-bold">Cardify</span>
@@ -219,7 +219,10 @@ function RegisterPage() {
 
               <Button
                 type="submit"
-                className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium rounded-lg shadow-lg shadow-purple-500/25 transition-all mt-2"
+                className="w-full h-11 bg-black hover:bg-black/80 text-white px-8 py-6 rounded-xl
+                  outline outline-2 outline-white/10
+                  shadow-[0_0_20px_4px_rgba(99,102,241,0.25)]
+                  transition-all duration-300"
                 disabled={isSubmitting || registerMutation.isPending}
               >
                 {(isSubmitting || registerMutation.isPending) ? (

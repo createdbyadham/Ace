@@ -125,3 +125,17 @@ export interface ReviewOut {
   streak: number;
   streak_updated: boolean;
 }
+
+// ===========================================
+// Snooze Types
+// ===========================================
+
+export interface SnoozeIn {
+  card_id: string;
+  hours?: number; // 1-168, default 24
+}
+
+export interface SnoozeOut {
+  card_id: string;
+  next_review_at: string;
+}

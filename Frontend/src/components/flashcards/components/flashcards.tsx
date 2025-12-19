@@ -8,6 +8,7 @@ import {
   Brain,
   CheckCircle,
   ChevronRight,
+  Clock,
   FileText,
   FolderOpen,
   Frown,
@@ -637,8 +638,8 @@ function DeckView({
     studyMode || 'review'
   );
 
-  // Review submission
-  const { submitReview, isSubmitting, invalidateStudyQueries } = useStudyMutations();
+  // Review submission and snooze
+  const { submitReview, snoozeCard, isSubmitting, isSnoozeing, invalidateStudyQueries } = useStudyMutations();
 
   // Store session cards in local state when loaded
   if (studySession && studyMode && !sessionStarted && studySession.cards.length >= 0) {
@@ -684,6 +685,23 @@ function DeckView({
         setCurrentIndex((prev) => prev + 1);
       }
     }, 150);
+  };
+
+  const handleSnooze = async (hours: number = 24) => {
+    if (!currentCard || isSnoozeing) return;
+
+    await snoozeCard(currentCard.card_id, hours);
+    
+    // Remove the snoozed card from session and move to next
+    setIsFlipped(false);
+    const remainingCards = sessionCards.filter((_, i) => i !== currentIndex);
+    setSessionCards(remainingCards);
+    
+    if (remainingCards.length === 0) {
+      setSessionComplete(true);
+    } else if (currentIndex >= remainingCards.length) {
+      setCurrentIndex(remainingCards.length - 1);
+    }
   };
 
   // Study Session UI
@@ -743,6 +761,18 @@ function DeckView({
             Exit Study
           </Button>
           <div className="flex items-center gap-4">
+            {studyMode === 'review' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSnooze(24)}
+                disabled={isSnoozeing}
+                className="gap-2 border-blue-500/30 hover:bg-blue-500/10 hover:border-blue-500/50 text-blue-400"
+              >
+                <Clock className="w-4 h-4" />
+                Snooze 24h
+              </Button>
+            )}
             <span className="text-sm text-foreground/50">
               {studyMode === 'review' ? 'Review Mode' : 'Practice Mode'}
             </span>

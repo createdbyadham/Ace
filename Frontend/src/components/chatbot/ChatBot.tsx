@@ -3,7 +3,7 @@ import { MessageCircle, X, Maximize2, Minimize2, Send, Trash2, Sparkles, Bot } f
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { chatbotApi } from './api';
-import { ChatMessage } from './types';
+import type { ChatMessage } from './types';
 
 type ViewMode = 'closed' | 'window' | 'fullscreen';
 
@@ -131,7 +131,7 @@ export function ChatBot() {
           <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-300" />
           
           {/* Main button */}
-          <div className="relative flex items-center justify-center w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full shadow-2xl transform transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
+          <div className="relative flex items-center justify-center w-14 h-14 bg-black hover:bg-black/80 text-white outline outline-2 outline-white/10 rounded-full shadow-[0_0_20px_4px_rgba(99,102,241,0.25)] transform transition-all duration-300 group-hover:scale-110">
             <MessageCircle className="w-6 h-6 text-white" />
           </div>
           
@@ -166,11 +166,11 @@ export function ChatBot() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg">
+            <div className="flex items-center justify-center w-9 h-9 bg-black text-white outline outline-2 outline-white/10 rounded-xl shadow-lg">
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm text-foreground">AI Assistant</h3>
+              <h3 className="font-semibold text-sm text-foreground">Cardify AI</h3>
               <p className="text-xs text-muted-foreground">Powered by RAG</p>
             </div>
           </div>
@@ -217,9 +217,9 @@ export function ChatBot() {
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-4 animate-in fade-in duration-500">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full blur-xl opacity-30" />
-                <div className="relative flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500/20 to-purple-600/20 rounded-full border border-white/10">
-                  <Sparkles className="w-8 h-8 text-indigo-400" />
+                <div className="absolute inset-0 bg-black rounded-full blur-xl opacity-30" />
+                <div className="relative flex items-center justify-center w-16 h-16 bg-black text-white outline outline-2 outline-white/10 rounded-full border border-white/10">
+                  <Sparkles className="w-8 h-8 text-white" />
                 </div>
               </div>
               <div>
@@ -243,7 +243,7 @@ export function ChatBot() {
                   className={cn(
                     'max-w-[85%] px-4 py-2.5 rounded-2xl',
                     message.role === 'user'
-                      ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-br-md'
+                      ? 'bg-black text-white rounded-br-md'
                       : 'bg-secondary/80 text-foreground rounded-bl-md border border-white/5'
                   )}
                 >
@@ -303,7 +303,7 @@ export function ChatBot() {
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || isLoading}
               size="icon"
-              className="h-8 w-8 bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+              className="h-8 w-8 bg-black hover:bg-black/80 text-white rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
             >
               <Send className="w-4 h-4" />
             </Button>

@@ -12,6 +12,8 @@ import type {
   StudyMode,
   ReviewIn,
   ReviewOut,
+  SnoozeIn,
+  SnoozeOut,
 } from '@/components/flashcards/types';
 
 export const flashcardsApi = {
@@ -115,6 +117,11 @@ export const flashcardsApi = {
 
   submitReview: async (payload: ReviewIn): Promise<ReviewOut> => {
     const { data } = await apiClient.post<ReviewOut>('/review', payload);
+    return data;
+  },
+
+  snoozeCard: async (payload: SnoozeIn): Promise<SnoozeOut> => {
+    const { data } = await apiClient.post<SnoozeOut>('/snooze', payload);
     return data;
   },
 };

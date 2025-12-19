@@ -15,13 +15,13 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="h-6 w-6 rounded-md bg-black outline outline-2 outline-white/10 flex items-center justify-center shadow-lg shadow-indigo-500/25">
             <span className="text-white font-bold text-sm">C</span>
           </div>
-          <span className="text-sm text-foreground/60">© 2025 Cardify</span>
+          <span className="text-sm text-foreground/60">© 2026 Cardify</span>
         </div>
         <nav className="flex items-center gap-6 text-xs text-foreground/60">
-          <Link to="/" className="hover:text-foreground transition-colors">Quiz</Link>
+          <Link to="/quiz" className="hover:text-foreground transition-colors">Quiz</Link>
           <Link to="/flashcards" className="hover:text-foreground transition-colors">Flash Cards</Link>
-          <Link to="/" className="hover:text-foreground transition-colors">Lectures</Link>
-          <Link to="/" className="hover:text-foreground transition-colors">Summaries</Link>
+          <Link to="/files" className="hover:text-foreground transition-colors">My Files</Link>
+          <Link to="/summaries" className="hover:text-foreground transition-colors">Summaries</Link>
         </nav>
       </div>
     </footer>

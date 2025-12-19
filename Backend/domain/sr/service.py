@@ -446,20 +446,22 @@ class ReviewService:
         next_review_at = datetime.now(timezone.utc) + timedelta(hours=payload.hours)
         
         async with self._pool.acquire() as conn:
+            # Use upsert to handle cards that haven't been reviewed yet
             result = await conn.fetchrow(
                 """
-                UPDATE public.states
+                INSERT INTO public.states (
+                    user_id, card_id, repetition, ef, interval_days,
+                    next_review_at, last_reviewed_at, version, created_at, updated_at
+                )
+                VALUES ($2, $3, 0, 2.5, 0, $1, NULL, 1, now(), now())
+                ON CONFLICT (user_id, card_id) DO UPDATE
                 SET next_review_at = $1, updated_at = now()
-                WHERE user_id = $2 AND card_id = $3
                 RETURNING card_id, next_review_at
                 """,
                 next_review_at,
                 user_id,
                 payload.card_id,
             )
-            
-            if result is None:
-                raise ValueError(f"No state found for card {payload.card_id}")
             
         return SnoozeOut(
             card_id=str(result["card_id"]),

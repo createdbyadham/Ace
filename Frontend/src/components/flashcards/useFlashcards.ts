@@ -9,6 +9,7 @@ import type {
   StudyMode,
   ReviewIn,
   ReviewResponse,
+  SnoozeIn,
 } from '@/components/flashcards/types';
 
 export const flashcardKeys = {
@@ -334,6 +335,12 @@ export function useSubmitReview() {
   });
 }
 
+export function useSnoozeCard() {
+  return useMutation({
+    mutationFn: (payload: SnoozeIn) => flashcardsApi.snoozeCard(payload),
+  });
+}
+
 export function useInvalidateStudyQueries() {
   const queryClient = useQueryClient();
   
@@ -344,6 +351,7 @@ export function useInvalidateStudyQueries() {
 
 export function useStudyMutations() {
   const submitReviewMutation = useSubmitReview();
+  const snoozeCardMutation = useSnoozeCard();
   const invalidateStudyQueries = useInvalidateStudyQueries();
 
   const submitReview = async (
@@ -380,9 +388,39 @@ export function useStudyMutations() {
     }
   };
 
+  const snoozeCard = async (
+    cardId: string,
+    hours: number = 24,
+    callbacks?: MutationCallbacks
+  ) => {
+    try {
+      const result = await snoozeCardMutation.mutateAsync({
+        card_id: cardId,
+        hours,
+      });
+      
+      const nextReview = new Date(result.next_review_at);
+      toast.success(`Card snoozed for ${hours} hour${hours !== 1 ? 's' : ''}`, {
+        description: `Next review: ${nextReview.toLocaleString()}`,
+        duration: 3000,
+      });
+
+      callbacks?.onSuccess?.();
+      return result;
+    } catch (error: any) {
+      toast.error('Failed to snooze card', {
+        description: error?.response?.data?.detail || 'Please try again.',
+      });
+      callbacks?.onError?.();
+      throw error;
+    }
+  };
+
   return {
     submitReview,
+    snoozeCard,
     isSubmitting: submitReviewMutation.isPending,
+    isSnoozeing: snoozeCardMutation.isPending,
     invalidateStudyQueries,
   };
 }

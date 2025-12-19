@@ -126,7 +126,11 @@ function LandingPage() {
               ) : (
                 <>
                   <Link to="/register">
-                    <Button size="lg" className="group bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-8 py-6 text-lg rounded-xl shadow-lg shadow-indigo-500/25">
+                    <Button size="lg" className="group bg-black hover:bg-black/80 text-white
+                  px-8 py-6 text-lg rounded-xl
+                  outline outline-2 outline-white/10
+                  shadow-[0_0_20px_4px_rgba(99,102,241,0.25)]
+                  transition-all duration-300">
                       Start Learning Free
                       <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
                     </Button>

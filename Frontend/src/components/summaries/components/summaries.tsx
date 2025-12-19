@@ -1,31 +1,12 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
-import {
-  ArrowLeft,
-  BookOpen,
-  Calendar,
-  ChevronRight,
-  Clock,
-  FileText,
-  Key,
-  Loader2,
-  Pencil,
-  Plus,
-  Search,
-  Sparkles,
-  Trash2,
-  Upload,
-  X,
+import { ArrowLeft, BookOpen, Calendar, ChevronRight, Clock, FileText, Key,Loader2, Pencil, Plus, Search, Sparkles, Trash2, Upload, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Summary, SummaryLength } from '@/components/summaries/types';
-import {
-  useSummaries,
-  useSummaryMutations,
-  useAISummaryGeneration,
-} from '@/components/summaries/useSummaries';
+import { useSummaries, useSummaryMutations, useAISummaryGeneration } from '@/components/summaries/useSummaries';
 import { DeleteConfirmDialog, EditSummaryDialog } from '@/components/summaries/components/SummaryDialogs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
