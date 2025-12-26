@@ -35,9 +35,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className={`w-full py-4 px-8 flex justify-between items-center border-b border-border/10 z-10 transition-opacity duration-500 ${className}`}>
       <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
         <div className="h-8 w-8 rounded-lg bg-black outline outline-2 outline-white/10 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-          <span className="text-white font-bold text-lg">C</span>
+          <span className="text-white font-bold text-lg">A</span>
         </div>
-        <h1 className="text-xl font-semibold">Cardify</h1>
+        <h1 className="text-xl font-semibold">ACE</h1>
       </Link>
       <div className="absolute left-1/2 transform -translate-x-1/2">
         <nav className="hidden md:flex items-center gap-8">

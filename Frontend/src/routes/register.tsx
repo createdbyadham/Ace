@@ -65,7 +65,7 @@ function RegisterPage() {
           username: data.username,
         });
         toast.success('Account created!', {
-          description: 'Welcome to Cardify. Start your learning journey!',
+          description: 'Welcome to ACE. Start your learning journey!',
         });
         navigate({ to: '/' });
       } else {
@@ -129,9 +129,9 @@ function RegisterPage() {
           <CardHeader className="text-center space-y-2 pb-2">
             <Link to="/" className="flex items-center justify-center gap-2 mb-4">
               <div className="h-10 w-10 rounded-xl bg-black outline outline-2 outline-white/10 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                <span className="text-white font-bold text-xl">C</span>
+                <span className="text-white font-bold text-xl">A</span>
               </div>
-              <span className="text-xl font-bold">Cardify</span>
+              <span className="text-xl font-bold">ACE</span>
             </Link>
             <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
             <CardDescription className="text-foreground/60">

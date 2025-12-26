@@ -13,9 +13,9 @@ export const Footer: React.FC<FooterProps> = ({
       <div className="max-w-screen-xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded-md bg-black outline outline-2 outline-white/10 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-            <span className="text-white font-bold text-sm">C</span>
+            <span className="text-white font-bold text-sm">A</span>
           </div>
-          <span className="text-sm text-foreground/60">© 2026 Cardify</span>
+          <span className="text-sm text-foreground/60">© 2026 ACE</span>
         </div>
         <nav className="flex items-center gap-6 text-xs text-foreground/60">
           <Link to="/quiz" className="hover:text-foreground transition-colors">Quiz</Link>

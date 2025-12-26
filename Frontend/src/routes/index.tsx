@@ -44,8 +44,8 @@ function LandingPage() {
         <Particles
           particleCount={150}
           particleSpread={15}
-          speed={0.05}
-          particleColors={['#6366f1', '#8b5cf6', '#a855f7']}
+          speed={0.01}
+          particleColors={['#FFFFFF']}
           moveParticlesOnHover
           particleHoverFactor={0.5}
           alphaParticles
@@ -54,10 +54,6 @@ function LandingPage() {
           cameraDistance={25}
         />
       </div>
-
-      {/* Gradient Overlays */}
-      <div className="fixed inset-0 z-0 bg-gradient-to-b from-background via-background/90 to-background pointer-events-none" />
-      <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-transparent to-transparent pointer-events-none" />
 
       <Navbar
         isAuthenticated={isAuthenticated}
@@ -92,7 +88,7 @@ function LandingPage() {
               </span>
               <br />
               <span className="bg-gradient-to-r from-indigo-200 to-purple-800 bg-clip-text text-transparent">
-                with Cardify
+                with ACE
               </span>
             </motion.h1>
 

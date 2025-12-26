@@ -170,7 +170,7 @@ export function ChatBot() {
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm text-foreground">Cardify AI</h3>
+              <h3 className="font-semibold text-sm text-foreground">ACE AI</h3>
               <p className="text-xs text-muted-foreground">Powered by RAG</p>
             </div>
           </div>

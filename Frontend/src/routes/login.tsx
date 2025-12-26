@@ -109,9 +109,9 @@ function LoginPage() {
           <CardHeader className="text-center space-y-2 pb-2">
             <Link to="/" className="flex items-center justify-center gap-2 mb-4">
               <div className="h-10 w-10 rounded-xl bg-black outline outline-2 outline-white/10 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                <span className="text-white font-bold text-xl">C</span>
+                <span className="text-white font-bold text-xl">A</span>
               </div>
-              <span className="text-xl font-bold">Cardify</span>
+              <span className="text-xl font-bold">ACE</span>
             </Link>
             <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
             <CardDescription className="text-foreground/60">
