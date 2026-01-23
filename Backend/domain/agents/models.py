@@ -31,6 +31,7 @@ class FlashcardGenerationResponse(BaseModel):
     cards_created: int
     cards: List[GeneratedCard]
     source_files: List[str]
+    model_used: str = Field(default="openai", description="Model used for generation: 'openai' or 'ace'")
 
 
 class DeckWithCardsOut(BaseModel):

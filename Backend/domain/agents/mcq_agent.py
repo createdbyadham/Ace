@@ -2,17 +2,18 @@
 MCQ Question Generation AI Agent.
 
 Takes PDFs and generates multiple choice questions using AI, then saves them to the database.
+Supports both OpenAI API and the fine-tuned Ace model.
 """
 from __future__ import annotations
 
 import json
-from typing import List, Tuple
+from typing import List, Literal, Tuple
 from uuid import UUID
 
 import asyncpg
 from openai import OpenAI
 
-from core.config import settings
+from core.config import settings, ModelProvider
 from domain.chatbot.pdf_processor import PDFProcessor
 
 
@@ -51,12 +52,14 @@ class MCQGenerationResponse:
         questions_created: int,
         questions: List[GeneratedMCQ],
         source_files: List[str],
+        model_used: str = "openai",
     ):
         self.set_id = set_id
         self.set_title = set_title
         self.questions_created = questions_created
         self.questions = questions
         self.source_files = source_files
+        self.model_used = model_used
     
     def to_dict(self) -> dict:
         return {
@@ -65,6 +68,7 @@ class MCQGenerationResponse:
             "questions_created": self.questions_created,
             "questions": [q.to_dict() for q in self.questions],
             "source_files": self.source_files,
+            "model_used": self.model_used,
         }
 
 
@@ -75,17 +79,32 @@ class MCQAgent:
     Features:
     - Extracts text from multiple PDFs
     - Uses AI to generate high-quality MCQ questions
+    - Supports both OpenAI API and fine-tuned Ace model
     - Distributes questions evenly across source documents
     - Creates question set and questions in database
     """
     
-    def __init__(self, pool: asyncpg.Pool):
+    def __init__(self, pool: asyncpg.Pool, model_provider: ModelProvider = "openai"):
         self._pool = pool
         self.pdf_processor = PDFProcessor()
-        self.client = OpenAI(
+        self.model_provider = model_provider
+        
+        # Initialize OpenAI client (always available as fallback)
+        self.openai_client = OpenAI(
             base_url=settings.llm_endpoint,
             api_key=settings.github_token,
         )
+        
+        # Ace model is loaded lazily on demand
+        self._ace_model = None
+    
+    @property
+    def ace_model(self):
+        """Lazy load Ace model when needed."""
+        if self._ace_model is None:
+            from domain.agents.ace_model import get_ace_model
+            self._ace_model = get_ace_model()
+        return self._ace_model
     
     def _extract_pdf_text(self, pdf_bytes: bytes) -> str:
         """Extract text from a single PDF."""
@@ -113,8 +132,44 @@ class MCQAgent:
         num_questions: int,
         filename: str,
     ) -> List[GeneratedMCQ]:
-        """Use AI to generate MCQ questions from text content."""
+        """
+        Use AI to generate MCQ questions from text content.
         
+        Uses the configured model provider (OpenAI or Ace).
+        """
+        if self.model_provider == "ace":
+            return self._generate_mcq_with_ace(text, num_questions, filename)
+        else:
+            return self._generate_mcq_with_openai(text, num_questions, filename)
+    
+    def _generate_mcq_with_ace(
+        self,
+        text: str,
+        num_questions: int,
+        filename: str,
+    ) -> List[GeneratedMCQ]:
+        """Generate MCQ questions using the fine-tuned Ace model."""
+        questions_data = self.ace_model.generate_mcq(text, num_questions, filename)
+        
+        questions = []
+        for q_data in questions_data:
+            questions.append(GeneratedMCQ(
+                question_text=q_data["question"],
+                options=q_data["options"],
+                correct_answer=q_data["correct_answer"],
+                explanation=q_data.get("explanation", ""),
+                source_file=q_data.get("source_file", filename),
+            ))
+        
+        return questions
+    
+    def _generate_mcq_with_openai(
+        self,
+        text: str,
+        num_questions: int,
+        filename: str,
+    ) -> List[GeneratedMCQ]:
+        """Generate MCQ questions using OpenAI API."""
         # Truncate text if too long
         max_chars = 15000
         if len(text) > max_chars:
@@ -157,7 +212,7 @@ Example format:
 
 Return ONLY the JSON array, no other text."""
 
-        response = self.client.chat.completions.create(
+        response = self.openai_client.chat.completions.create(
             model=settings.llm_model,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that creates educational MCQ questions. Always respond with valid JSON."},
@@ -294,6 +349,7 @@ Return ONLY the JSON array, no other text."""
             questions_created=len(all_questions),
             questions=all_questions,
             source_files=source_files,
+            model_used=self.model_provider,
         )
 
 

@@ -5,6 +5,7 @@ Endpoints:
 - POST /agents/flashcards - Generate flashcards from PDFs
 - POST /agents/mcq - Generate MCQ questions from PDFs
 - POST /agents/summary - Generate summary from PDFs
+- GET /agents/models - List available models for generation
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from pydantic import BaseModel, Field
 
 from api.auth import CurrentUser, get_current_user
+from core.config import settings, ModelProvider
 from db.pool import get_pool
 from domain.agents.flashcard_agent import FlashcardAgent
 from domain.agents.mcq_agent import MCQAgent
@@ -24,12 +26,18 @@ from domain.agents.models import FlashcardGenerationResponse, SummaryGenerationR
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-def get_flashcard_agent(pool: asyncpg.Pool = Depends(get_pool)) -> FlashcardAgent:
-    return FlashcardAgent(pool)
+# Valid model providers for generation
+VALID_MODEL_PROVIDERS = ["openai", "ace"]
 
 
-def get_mcq_agent(pool: asyncpg.Pool = Depends(get_pool)) -> MCQAgent:
-    return MCQAgent(pool)
+def validate_model_provider(model: str) -> ModelProvider:
+    """Validate and return the model provider."""
+    if model not in VALID_MODEL_PROVIDERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid model. Must be one of: {', '.join(VALID_MODEL_PROVIDERS)}",
+        )
+    return model
 
 
 def get_summary_agent(pool: asyncpg.Pool = Depends(get_pool)) -> SummaryAgent:
@@ -51,6 +59,39 @@ class MCQGenerationResponseOut(BaseModel):
     questions_created: int
     questions: List[GeneratedMCQOut]
     source_files: List[str]
+    model_used: str = Field(default="openai", description="Model used for generation")
+
+
+class AvailableModelsResponse(BaseModel):
+    """Response listing available models."""
+    models: List[str]
+    default: str
+    ace_available: bool = Field(description="Whether the Ace model is available (requires GPU)")
+
+
+@router.get("/models", response_model=AvailableModelsResponse)
+async def list_available_models():
+    """
+    List available AI models for content generation.
+    
+    Returns:
+        - models: List of available model identifiers
+        - default: The default model used if none specified
+        - ace_available: Whether the Ace fine-tuned model can be used
+    """
+    from domain.agents.ace_model import AceModel
+    
+    ace_available = AceModel.is_available() and settings.ace_enabled
+    
+    models = ["openai"]
+    if ace_available:
+        models.append("ace")
+    
+    return AvailableModelsResponse(
+        models=models,
+        default=settings.default_generation_model,
+        ace_available=ace_available,
+    )
 
 
 @router.post("/flashcards", response_model=FlashcardGenerationResponse)
@@ -59,8 +100,9 @@ async def generate_flashcards(
     num_cards: int = Form(..., ge=1, le=100, description="Number of flashcards to generate"),
     deck_title: str = Form(..., min_length=1, max_length=200, description="Title for the new deck"),
     deck_description: str = Form(default=None, max_length=1000, description="Optional deck description"),
+    model: str = Form(default="openai", description="AI model to use: 'openai' or 'ace' (fine-tuned)"),
     user: CurrentUser = Depends(get_current_user),
-    agent: FlashcardAgent = Depends(get_flashcard_agent),
+    pool: asyncpg.Pool = Depends(get_pool),
 ):
     """
     Generate flashcards from uploaded PDF files using AI.
@@ -76,10 +118,30 @@ async def generate_flashcards(
         num_cards: Total number of flashcards to generate (distributed evenly)
         deck_title: Name for the new deck
         deck_description: Optional description for the deck
+        model: AI model to use - 'openai' (default) or 'ace' (fine-tuned model)
         
     Returns:
         The created deck with all generated flashcards
     """
+    # Validate model choice
+    model_provider = validate_model_provider(model)
+    
+    # Check if Ace model is requested but not available
+    if model_provider == "ace":
+        from domain.agents.ace_model import AceModel
+        if not AceModel.is_available():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ace model is not available. Requires GPU with CUDA and unsloth package.",
+            )
+        if not settings.ace_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ace model is disabled in configuration.",
+            )
+    
+    # Create agent with selected model
+    agent = FlashcardAgent(pool, model_provider=model_provider)
     # Validate files
     if not files:
         raise HTTPException(
@@ -151,8 +213,9 @@ async def generate_mcq_questions(
     num_questions: int = Form(..., ge=1, le=100, description="Number of MCQ questions to generate"),
     set_title: str = Form(..., min_length=1, max_length=200, description="Title for the question set"),
     set_description: str = Form(default=None, max_length=1000, description="Optional description"),
+    model: str = Form(default="openai", description="AI model to use: 'openai' or 'ace' (fine-tuned)"),
     user: CurrentUser = Depends(get_current_user),
-    agent: MCQAgent = Depends(get_mcq_agent),
+    pool: asyncpg.Pool = Depends(get_pool),
 ):
     """
     Generate MCQ questions from uploaded PDF files using AI.
@@ -174,10 +237,30 @@ async def generate_mcq_questions(
         num_questions: Total number of questions to generate (distributed evenly)
         set_title: Name for the new question set
         set_description: Optional description
+        model: AI model to use - 'openai' (default) or 'ace' (fine-tuned model)
         
     Returns:
         The created question set with all generated MCQ questions
     """
+    # Validate model choice
+    model_provider = validate_model_provider(model)
+    
+    # Check if Ace model is requested but not available
+    if model_provider == "ace":
+        from domain.agents.ace_model import AceModel
+        if not AceModel.is_available():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ace model is not available. Requires GPU with CUDA and unsloth package.",
+            )
+        if not settings.ace_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ace model is disabled in configuration.",
+            )
+    
+    # Create agent with selected model
+    agent = MCQAgent(pool, model_provider=model_provider)
     # Validate files
     if not files:
         raise HTTPException(
@@ -242,6 +325,7 @@ async def generate_mcq_questions(
                 for q in result.questions
             ],
             source_files=result.source_files,
+            model_used=result.model_used,
         )
     
     except ValueError as exc:

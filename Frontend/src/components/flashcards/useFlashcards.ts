@@ -132,16 +132,27 @@ export function useGenerateFlashcards() {
       numCards,
       deckTitle,
       deckDescription,
+      model = 'openai',
     }: {
       files: File[];
       numCards: number;
       deckTitle: string;
       deckDescription?: string;
-    }) => flashcardsApi.generateFlashcards(files, numCards, deckTitle, deckDescription),
+      model?: 'openai' | 'ace';
+    }) => flashcardsApi.generateFlashcards(files, numCards, deckTitle, deckDescription, model),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: flashcardKeys.decks() });
       queryClient.invalidateQueries({ queryKey: flashcardKeys.cards() });
     },
+  });
+}
+
+// Hook to get available models
+export function useAvailableModels() {
+  return useQuery({
+    queryKey: ['agents', 'models'],
+    queryFn: flashcardsApi.getAvailableModels,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 }
 
@@ -271,13 +282,15 @@ export function useAIGeneration() {
       numCards: number;
       deckTitle: string;
       deckDescription?: string;
+      model?: 'openai' | 'ace';
     },
     callbacks?: MutationCallbacks
   ) => {
     try {
       const result = await generateMutation.mutateAsync(params);
+      const modelName = params.model === 'ace' ? 'Ace' : 'ChatGPT';
       toast.success(`Generated ${result.cards_created} flashcards!`, {
-        description: `Deck "${result.deck_title}" created successfully.`,
+        description: `Deck "${result.deck_title}" created using ${modelName}.`,
       });
       callbacks?.onSuccess?.();
       return result;

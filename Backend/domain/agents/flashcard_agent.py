@@ -2,17 +2,18 @@
 Flashcard Generation AI Agent.
 
 Takes PDFs and generates flashcards using AI, then saves them to the database.
+Supports both OpenAI API and the fine-tuned Ace model.
 """
 from __future__ import annotations
 
 import json
-from typing import List, Tuple
+from typing import List, Literal, Tuple
 from uuid import UUID
 
 import asyncpg
 from openai import OpenAI
 
-from core.config import settings
+from core.config import settings, ModelProvider
 from domain.chatbot.pdf_processor import PDFProcessor
 from .models import GeneratedCard, FlashcardGenerationResponse
 
@@ -24,17 +25,32 @@ class FlashcardAgent:
     Features:
     - Extracts text from multiple PDFs
     - Uses AI to generate high-quality flashcards
+    - Supports both OpenAI API and fine-tuned Ace model
     - Distributes cards evenly across source documents
     - Creates deck and cards in database
     """
     
-    def __init__(self, pool: asyncpg.Pool):
+    def __init__(self, pool: asyncpg.Pool, model_provider: ModelProvider = "openai"):
         self._pool = pool
         self.pdf_processor = PDFProcessor()
-        self.client = OpenAI(
+        self.model_provider = model_provider
+        
+        # Initialize OpenAI client (always available as fallback)
+        self.openai_client = OpenAI(
             base_url=settings.llm_endpoint,
             api_key=settings.github_token,
         )
+        
+        # Ace model is loaded lazily on demand
+        self._ace_model = None
+    
+    @property
+    def ace_model(self):
+        """Lazy load Ace model when needed."""
+        if self._ace_model is None:
+            from domain.agents.ace_model import get_ace_model
+            self._ace_model = get_ace_model()
+        return self._ace_model
     
     def _extract_pdf_text(self, pdf_bytes: bytes, filename: str) -> str:
         """Extract text from a single PDF."""
@@ -62,8 +78,42 @@ class FlashcardAgent:
         num_cards: int,
         filename: str,
     ) -> List[GeneratedCard]:
-        """Use AI to generate flashcards from text content."""
+        """
+        Use AI to generate flashcards from text content.
         
+        Uses the configured model provider (OpenAI or Ace).
+        """
+        if self.model_provider == "ace":
+            return self._generate_flashcards_with_ace(text, num_cards, filename)
+        else:
+            return self._generate_flashcards_with_openai(text, num_cards, filename)
+    
+    def _generate_flashcards_with_ace(
+        self,
+        text: str,
+        num_cards: int,
+        filename: str,
+    ) -> List[GeneratedCard]:
+        """Generate flashcards using the fine-tuned Ace model."""
+        cards_data = self.ace_model.generate_flashcards(text, num_cards, filename)
+        
+        cards = []
+        for card_data in cards_data:
+            cards.append(GeneratedCard(
+                front=card_data["front"],
+                back=card_data["back"],
+                source_file=card_data.get("source_file", filename),
+            ))
+        
+        return cards
+    
+    def _generate_flashcards_with_openai(
+        self,
+        text: str,
+        num_cards: int,
+        filename: str,
+    ) -> List[GeneratedCard]:
+        """Generate flashcards using OpenAI API."""
         # Truncate text if too long (keep first ~15k chars for context window)
         max_chars = 15000
         if len(text) > max_chars:
@@ -96,7 +146,7 @@ Example format:
 
 Return ONLY the JSON array, no other text."""
 
-        response = self.client.chat.completions.create(
+        response = self.openai_client.chat.completions.create(
             model=settings.llm_model,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that creates educational flashcards. Always respond with valid JSON."},
@@ -216,6 +266,7 @@ Return ONLY the JSON array, no other text."""
             cards_created=len(all_cards),
             cards=all_cards,
             source_files=source_files,
+            model_used=self.model_provider,
         )
 
 

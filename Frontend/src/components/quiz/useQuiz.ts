@@ -377,15 +377,26 @@ export function useGenerateQuestions() {
       numQuestions,
       setTitle,
       setDescription,
+      model = 'openai',
     }: {
       files: File[];
       numQuestions: number;
       setTitle: string;
       setDescription?: string;
-    }) => quizApi.generateQuestions(files, numQuestions, setTitle, setDescription),
+      model?: 'openai' | 'ace';
+    }) => quizApi.generateQuestions(files, numQuestions, setTitle, setDescription, model),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: quizKeys.questionSets() });
     },
+  });
+}
+
+// Hook to get available models
+export function useAvailableModels() {
+  return useQuery({
+    queryKey: ['agents', 'models'],
+    queryFn: quizApi.getAvailableModels,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 }
 
@@ -398,13 +409,15 @@ export function useAIGeneration() {
       numQuestions: number;
       setTitle: string;
       setDescription?: string;
+      model?: 'openai' | 'ace';
     },
     callbacks?: MutationCallbacks
   ) => {
     try {
       const result = await generateMutation.mutateAsync(params);
+      const modelName = params.model === 'ace' ? 'Ace' : 'ChatGPT';
       toast.success(`Generated ${result.questions_created} questions!`, {
-        description: `Question set "${result.set_title}" created successfully.`,
+        description: `Question set "${result.set_title}" created using ${modelName}.`,
       });
       callbacks?.onSuccess?.();
       return result;

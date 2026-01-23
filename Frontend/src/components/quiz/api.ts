@@ -103,12 +103,14 @@ export const quizApi = {
     files: File[],
     numQuestions: number,
     setTitle: string,
-    setDescription?: string
+    setDescription?: string,
+    model: 'openai' | 'ace' = 'openai'
   ): Promise<MCQGenerationResponse> => {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
     formData.append('num_questions', numQuestions.toString());
     formData.append('set_title', setTitle);
+    formData.append('model', model);
     if (setDescription) {
       formData.append('set_description', setDescription);
     }
@@ -121,6 +123,14 @@ export const quizApi = {
           'Content-Type': 'multipart/form-data',
         },
       }
+    );
+    return data;
+  },
+
+  // Get available AI models
+  getAvailableModels: async (): Promise<{ models: string[]; default: string; ace_available: boolean }> => {
+    const { data } = await apiClient.get<{ models: string[]; default: string; ace_available: boolean }>(
+      '/agents/models'
     );
     return data;
   },

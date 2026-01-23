@@ -73,12 +73,14 @@ export const flashcardsApi = {
     files: Array<File>,
     numCards: number,
     deckTitle: string,
-    deckDescription?: string
+    deckDescription?: string,
+    model: 'openai' | 'ace' = 'openai'
   ): Promise<FlashcardGenerationResponse> => {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
     formData.append('num_cards', numCards.toString());
     formData.append('deck_title', deckTitle);
+    formData.append('model', model);
     if (deckDescription) {
       formData.append('deck_description', deckDescription);
     }
@@ -91,6 +93,14 @@ export const flashcardsApi = {
           'Content-Type': 'multipart/form-data',
         },
       }
+    );
+    return data;
+  },
+
+  // Get available AI models
+  getAvailableModels: async (): Promise<{ models: string[]; default: string; ace_available: boolean }> => {
+    const { data } = await apiClient.get<{ models: string[]; default: string; ace_available: boolean }>(
+      '/agents/models'
     );
     return data;
   },
