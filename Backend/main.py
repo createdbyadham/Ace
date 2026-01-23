@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Ankor Backend (FastAPI)",
+        title="Ace Backend (FastAPI)",
         lifespan=lifespan
     )
 

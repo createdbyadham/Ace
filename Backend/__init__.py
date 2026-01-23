@@ -1,4 +1,4 @@
-"""Ankor package initialisation."""
+"""Ace package initialisation."""
 
 from .main import create_app
 
