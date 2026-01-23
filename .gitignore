@@ -7,6 +7,7 @@ env/
 .venv/
 .Python
 build/
+plan.md
 develop-eggs/
 dist/
 downloads/
