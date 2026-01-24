@@ -10,22 +10,22 @@ The platform automatically generates high-quality **Flashcards** and **Multiple 
 
 ## ✨ Key Features
 
-### 🧠 AI-Powered Content Generation
+### AI-Powered Content Generation
 - **Fine-Tuned Llama 3 Integration**: Utilizes a custom fine-tuned model specifically optimized for educational content generation using Unsloth.
 - **Smart Flashcards**: Automatically extracts key concepts and definitions from uploaded documents to create flashcards.
 - **Dynamic MCQs**: Generates challenging multiple-choice questions with explanations to test deep understanding.
 
-### 🤖 Intelligent Tutor (RAG Chatbot)
+### Intelligent Tutor (RAG Chatbot)
 - **Context-Aware Answers**: Chat with your PDF documents. The system retrieves relevant sections to answer questions accurately.
 - **Vector Search**: Powered by **ChromaDB** and **Sentence Transformers** (`all-MiniLM-L6-v2`) for semantic understanding of your content.
 - **Conversation Memory**: Maintains context across the chat session for a natural dialogue flow.
 
-### 📅 Spaced Repetition System (SRS)
+### Spaced Repetition System (SRS)
 - **Optimized Learning**: Implements the **SM-2 Algorithm** to schedule reviews at the optimal time for memory retention.
 - **Efficiency**: Minimizes study time while maximizing long-term recall.
 - **Daily Dashboard**: Visualizes upcoming reviews and study progress.
 
-### 💻 Modern Full-Stack Architecture
+### Modern Full-Stack Architecture
 - **Responsive UI**: Built with **React**, **Vite**, and **Tailwind CSS**.
 - **Component Library**: Features a polished UI using **shadcn/ui** and **Radix UI**.
 - **State Management**: Robust data handling with **TanStack Query**.
