@@ -72,7 +72,7 @@ The platform automatically generates high-quality **Flashcards** and **Multiple 
 
 1.  **Clone the repository**
     ```bash
-    git clone https://github.com/yourusername/ace-platform.git
+    git clone https://github.com/createdbyadham/ace.git
     cd ace-platform
     ```
 
